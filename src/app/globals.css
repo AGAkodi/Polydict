@@ -1,0 +1,96 @@
+/* Import Inter from Google Fonts */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap');
+
+@import "tailwindcss";
+
+:root {
+  --background: #080c10;
+  --foreground: #f1f5f9;
+  
+  --panel-bg: #0d1219;
+  --card-bg: #111820;
+  --border-color: #1e2a38;
+  
+  --cyan-accent: #00d4ff;
+  --yes-green: #00e676;
+  --no-red: #ff5252;
+  --skip-amber: #ffab40;
+}
+
+body {
+  background-color: var(--background);
+  color: var(--foreground);
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  font-weight: 400;
+  overflow: hidden;
+  margin: 0;
+  padding: 0;
+  height: 100vh;
+  width: 100vw;
+  position: relative;
+}
+
+/* Custom fonts styling - making sure all UI elements use Inter */
+.font-mono {
+  font-family: 'Inter', monospace !important;
+  font-feature-settings: "tnum" 1; /* Tabular numbers for clean tabular lining */
+}
+
+.font-sans {
+  font-family: 'Inter', sans-serif !important;
+}
+
+/* Console / Trading Scrollbar styling */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: var(--background);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--border-color);
+  border-radius: 2px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--cyan-accent);
+}
+
+/* Custom scrollbar behaviors */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;  /* IE and Edge */
+  scrollbar-width: none;  /* Firefox */
+}
+
+/* Smooth layout animations */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* Glassy retro console styling */
+.retro-card {
+  background: var(--card-bg);
+  border: 1px solid var(--border-color);
+}
+
+.retro-card-hover {
+  transition: all 0.15s ease-in-out;
+}
+.retro-card-hover:hover {
+  background: #141c26;
+  border-color: var(--cyan-accent);
+}
