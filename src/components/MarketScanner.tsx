@@ -12,6 +12,7 @@ interface MarketScannerProps {
   lastUpdated: string;
   isRefreshing: boolean;
   onRefresh: () => void;
+  pricesError?: boolean;
 }
 
 const ITEMS_PER_PAGE = 15;
@@ -25,6 +26,7 @@ export default function MarketScanner({
   lastUpdated,
   isRefreshing,
   onRefresh,
+  pricesError,
 }: MarketScannerProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [visibleCount, setVisibleCount] = useState(ITEMS_PER_PAGE);
@@ -115,10 +117,17 @@ export default function MarketScanner({
 
         {/* Caching Status Bar */}
         <div className="flex justify-between items-center text-[9px] font-mono text-slate-500">
-          <span className="flex items-center gap-1">
-            <span className="h-1.5 w-1.5 rounded-full bg-[#00e676] animate-pulse"></span>
-            LIVE-ONLY TELEMETRY
-          </span>
+          {pricesError ? (
+            <span className="flex items-center gap-1 text-[#ff5252] font-semibold animate-pulse">
+              <span className="h-1.5 w-1.5 rounded-full bg-[#ff5252]"></span>
+              CLOB TELEMETRY OFFLINE
+            </span>
+          ) : (
+            <span className="flex items-center gap-1">
+              <span className="h-1.5 w-1.5 rounded-full bg-[#00e676] animate-pulse"></span>
+              LIVE-ONLY TELEMETRY
+            </span>
+          )}
           <span>SYNCED: {lastUpdated}</span>
         </div>
       </div>

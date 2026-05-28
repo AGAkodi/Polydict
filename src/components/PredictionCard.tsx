@@ -30,6 +30,8 @@ interface AnalysisResult {
 
 interface PredictionCardProps {
   market: MergedMarket | null;
+  livePrices?: Record<string, { yes: number; no: number; vol: number }> | null;
+  pricesError?: boolean;
   onAnalysisLoaded: (analysis: AnalysisResult) => void;
   triggerReanalyzeCount: number;
 }
@@ -37,24 +39,35 @@ interface PredictionCardProps {
 const STORAGE_KEY_PREFIX = 'analysis_';
 const CACHE_TTL = 86400000; // 24 hours in ms
 
-export default function PredictionCard({ market, onAnalysisLoaded, triggerReanalyzeCount }: PredictionCardProps) {
+export default function PredictionCard({ 
+  market, 
+  livePrices, 
+  pricesError, 
+  onAnalysisLoaded, 
+  triggerReanalyzeCount 
+}: PredictionCardProps) {
   const [analysis, setAnalysis] = useState<AnalysisResult | null>(null);
+  const [analyzedAtPrice, setAnalyzedAtPrice] = useState<number | null>(null);
   const [loading, setLoading] = useState(false);
   const [loadingPhase, setLoadingPhase] = useState<'grok' | 'claude' | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [bankroll, setBankroll] = useState<number>(10000);
+  const [useHalfKelly, setUseHalfKelly] = useState<boolean>(true);
 
   useEffect(() => {
     if (!market) {
       setAnalysis(null);
+      setAnalyzedAtPrice(null);
       return;
     }
 
     const cached = localStorage.getItem(`${STORAGE_KEY_PREFIX}${market.id}`);
     if (cached) {
       try {
-        const { timestamp, data } = JSON.parse(cached);
+        const { timestamp, analyzedAtPrice: cachedPrice, data } = JSON.parse(cached);
         if (Date.now() - timestamp < CACHE_TTL) {
           setAnalysis(data);
+          setAnalyzedAtPrice(cachedPrice !== undefined ? cachedPrice : market.yesPrice);
           onAnalysisLoaded(data);
           setError(null);
           return;
@@ -115,6 +128,7 @@ export default function PredictionCard({ market, onAnalysisLoaded, triggerReanal
       };
 
       setAnalysis(finalResult);
+      setAnalyzedAtPrice(targetMarket.yesPrice);
       onAnalysisLoaded(finalResult);
 
       // Cache the result
@@ -122,6 +136,7 @@ export default function PredictionCard({ market, onAnalysisLoaded, triggerReanal
         `${STORAGE_KEY_PREFIX}${targetMarket.id}`,
         JSON.stringify({
           timestamp: Date.now(),
+          analyzedAtPrice: targetMarket.yesPrice,
           data: finalResult,
         })
       );
@@ -133,6 +148,24 @@ export default function PredictionCard({ market, onAnalysisLoaded, triggerReanal
       setLoadingPhase(null);
     }
   };
+
+  if (pricesError) {
+    return (
+      <div className="h-full flex flex-col items-center justify-center p-8 bg-[#080c10] border-r border-[#1e2a38] text-center select-none animate-fade-in font-mono">
+        <div className="max-w-md space-y-4">
+          <div className="mx-auto w-16 h-16 rounded-2xl bg-[#ff5252]/5 border border-[#ff5252]/15 flex items-center justify-center text-[#ff5252] text-2xl font-bold animate-pulse">
+            ERR
+          </div>
+          <div className="space-y-2">
+            <h3 className="text-sm font-bold text-[#ff5252]">Polymarket CLOB API Offline</h3>
+            <p className="text-xs text-slate-500 leading-relaxed font-sans">
+              Live price feeds could not be retrieved from the Polymarket CLOB order book. Telemetry operations are paused to prevent stale or simulated data usage.
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   if (!market) {
     return (
@@ -152,7 +185,16 @@ export default function PredictionCard({ market, onAnalysisLoaded, triggerReanal
     );
   }
 
-  const yesOdds = Math.round(market.yesPrice * 100);
+  const currentPrice = livePrices?.[market.conditionId]?.yes ?? market.yesPrice;
+  const priceDrift = analyzedAtPrice != null && currentPrice != null
+    ? Math.abs(currentPrice - analyzedAtPrice)
+    : 0;
+
+  const reAnalyze = () => {
+    runAnalysis(market, true);
+  };
+
+  const yesOdds = Math.round(currentPrice * 100);
   const countdown = getCountdown(market.endDateIso || market.endDate);
 
   const getVerdictStyles = (v: string) => {
@@ -180,6 +222,13 @@ export default function PredictionCard({ market, onAnalysisLoaded, triggerReanal
         return 'border-[#1e2a38] bg-[#0d1219] text-slate-400';
     }
   };
+
+  const edgeVal = analysis?.edge || 0;
+  const oddsVal = currentPrice || 0.50;
+  const rawKelly = edgeVal > 0 && oddsVal > 0 ? (edgeVal / oddsVal) : 0;
+  const kellyMultiplier = useHalfKelly ? 0.5 : 1.0;
+  const allocatedKelly = Math.min(1.0, Math.max(0, rawKelly * kellyMultiplier));
+  const positionAmount = bankroll * allocatedKelly;
 
   return (
     <div className="h-full flex flex-col bg-[#080c10] border-r border-[#1e2a38] overflow-y-auto no-scrollbar relative select-text">
@@ -305,6 +354,24 @@ XAI_API_KEY=your-xai-key-here`}
           )
         ) : analysis ? (
           <div className="space-y-6 animate-fade-in">
+            {/* Price Drift Warning Banner */}
+            {priceDrift > 0.03 && (
+              <div className="p-3.5 rounded border border-l-4 border-[#ffab40]/40 border-l-[#ffab40] bg-[#ffab40]/[0.03] text-xs font-mono text-[#ffab40] flex items-center justify-between gap-3 animate-fade-in">
+                <div className="flex items-center gap-2">
+                  <span>⚠</span>
+                  <span className="font-semibold text-slate-200">
+                    Odds moved {(priceDrift * 100).toFixed(1)}pp since this analysis was run
+                  </span>
+                </div>
+                <button 
+                  onClick={reAnalyze}
+                  className="px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider border border-[#ffab40]/40 bg-[#ffab40]/10 rounded hover:bg-[#ffab40]/20 text-[#ffab40] cursor-pointer transition-all active:scale-[0.97] shrink-0"
+                >
+                  Re-analyze now
+                </button>
+              </div>
+            )}
+
             {/* Verdict Box & Re-analyze row */}
             <div className="flex items-center justify-between gap-4 p-5 rounded-xl bg-[#0d1219] border border-[#1e2a38]">
               <div className="space-y-1 font-mono">
@@ -331,9 +398,228 @@ XAI_API_KEY=your-xai-key-here`}
             {/* Probability Bars */}
             <ConfidenceBar
               confidence={analysis.confidence}
-              marketOdds={market.yesPrice}
+              marketOdds={currentPrice}
               edge={analysis.edge}
             />
+
+            {/* Live Telemetry & Sentiment Heatmap */}
+            <div className="p-4 rounded-xl bg-[#0d1219]/90 border border-[#1e2a38] backdrop-blur-md space-y-4 font-mono shadow-[0_0_15px_rgba(0,212,255,0.03)] animate-fade-in">
+              <div className="flex items-center justify-between border-b border-[#1e2a38] pb-2">
+                <span className="text-xs font-bold text-[#00d4ff] uppercase tracking-wider flex items-center gap-1.5">
+                  <span className="w-1.5 h-1.5 rounded-full bg-[#00d4ff] animate-ping" />
+                  [Live Telemetry Heatmap]
+                </span>
+                <span className="text-[9px] text-slate-500 font-semibold uppercase">Real-Time Dials</span>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                {/* Dial 1: Price Drift & Momentum */}
+                <div className="p-3 rounded-lg bg-[#080c10] border border-[#1e2a38]/80 flex flex-col justify-between space-y-2">
+                  <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Price Momentum</span>
+                  <div className="flex items-center gap-2">
+                    {priceDrift === 0 ? (
+                      <>
+                        <span className="text-slate-400 text-sm font-bold">──</span>
+                        <span className="text-xs font-bold text-slate-300">STABLE</span>
+                      </>
+                    ) : currentPrice > (analyzedAtPrice || 0) ? (
+                      <>
+                        <span className="text-[#00e676] text-lg font-bold animate-pulse">▲</span>
+                        <span className="text-xs font-bold text-[#00e676]">UPWARD DRIFT</span>
+                      </>
+                    ) : (
+                      <>
+                        <span className="text-[#ff5252] text-lg font-bold animate-pulse">▼</span>
+                        <span className="text-xs font-bold text-[#ff5252]">DOWNWARD DRIFT</span>
+                      </>
+                    )}
+                  </div>
+                  <span className="text-[9px] text-slate-400 font-sans">
+                    Drift: {priceDrift === 0 ? '0.0' : `${(priceDrift * 100).toFixed(1)}`}pp from initial scan
+                  </span>
+                </div>
+
+                {/* Dial 2: Grok Social Power */}
+                <div className="p-3 rounded-lg bg-[#080c10] border border-[#1e2a38]/80 flex flex-col justify-between space-y-2">
+                  <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Grok Social Power</span>
+                  <div className="space-y-1">
+                    <div className="flex items-center justify-between text-[10px] font-bold text-slate-300">
+                      <span>METER</span>
+                      <span className={
+                        analysis.grokSignals?.sentiment === 'bull' ? 'text-[#00e676]' :
+                        analysis.grokSignals?.sentiment === 'bear' ? 'text-[#ff5252]' : 'text-[#ffab40]'
+                      }>
+                        {analysis.grokSignals?.sentiment?.toUpperCase() || 'NEUTRAL'}
+                      </span>
+                    </div>
+                    {/* Glowing Power Bar */}
+                    <div className="h-1.5 w-full bg-[#1e2a38] rounded-full overflow-hidden">
+                      <div 
+                        className={`h-full rounded-full transition-all duration-500 ${
+                          analysis.grokSignals?.sentiment === 'bull' ? 'bg-[#00e676] shadow-[0_0_8px_#00e676]' :
+                          analysis.grokSignals?.sentiment === 'bear' ? 'bg-[#ff5252] shadow-[0_0_8px_#ff5252]' :
+                          'bg-[#ffab40] shadow-[0_0_8px_#ffab40]'
+                        }`}
+                        style={{ 
+                          width: 
+                            analysis.grokSignals?.sentiment === 'bull' ? '85%' :
+                            analysis.grokSignals?.sentiment === 'bear' ? '25%' : '55%'
+                        }}
+                      />
+                    </div>
+                  </div>
+                  <span className="text-[9px] text-slate-400 font-sans">
+                    Activity: {analysis.grokSignals?.momentum || 'active'} flow
+                  </span>
+                </div>
+
+                {/* Dial 3: Catalyst Velocity */}
+                <div className="p-3 rounded-lg bg-[#080c10] border border-[#1e2a38]/80 flex flex-col justify-between space-y-2">
+                  <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Catalyst Timeline</span>
+                  <div className="flex items-center gap-1.5">
+                    <span className={`px-2 py-0.5 rounded text-[9px] font-bold uppercase ${
+                      analysis.signals.some(s => s.direction === 'bull') 
+                        ? 'border border-[#00e676]/20 bg-[#00e676]/10 text-[#00e676]'
+                        : 'border border-[#ffab40]/20 bg-[#ffab40]/10 text-[#ffab40]'
+                    }`}>
+                      {analysis.signals.length} CATALYSTS
+                    </span>
+                  </div>
+                  <span className="text-[9px] text-slate-400 font-sans truncate">
+                    Latest: {analysis.signals[0]?.text || 'No updates'}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* Interactive Kelly Position Sizer Simulator */}
+            <div className="p-4 rounded-xl bg-[#0d1219]/90 border border-[#1e2a38] backdrop-blur-md space-y-4 font-mono shadow-[0_0_15px_rgba(0,212,255,0.03)] animate-fade-in">
+              <div className="flex items-center justify-between border-b border-[#1e2a38] pb-2">
+                <span className="text-xs font-bold text-[#00d4ff] uppercase tracking-wider flex items-center gap-1.5">
+                  <span className="w-1.5 h-1.5 rounded-full bg-[#00d4ff] animate-pulse" />
+                  [Kelly Position Sizer Simulator]
+                </span>
+                <span className="text-[9px] text-[#00d4ff] font-bold border border-[#00d4ff]/20 bg-[#00d4ff]/5 px-1.5 py-0.5 rounded">
+                  Live Odds Sizing
+                </span>
+              </div>
+
+              {/* Sizer Inputs */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {/* Bankroll Input & Presets */}
+                <div className="space-y-2">
+                  <div className="flex justify-between items-center text-[10px] font-bold text-slate-400">
+                    <span>TRADING BANKROLL</span>
+                    <span className="text-slate-500">USD</span>
+                  </div>
+                  <div className="relative">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs font-bold">$</span>
+                    <input 
+                      type="number"
+                      value={bankroll}
+                      onChange={(e) => setBankroll(Math.max(0, parseFloat(e.target.value) || 0))}
+                      className="w-full bg-[#080c10] border border-[#1e2a38] rounded p-2 pl-7 text-xs font-bold text-slate-200 focus:outline-none focus:border-[#00d4ff] transition-all"
+                    />
+                  </div>
+                  {/* Bankroll Presets */}
+                  <div className="flex flex-wrap gap-1.5">
+                    {[1000, 5000, 10000, 25000].map((val) => (
+                      <button
+                        key={val}
+                        onClick={() => setBankroll(val)}
+                        className={`px-2 py-0.5 rounded border text-[9px] font-bold transition-all ${
+                          bankroll === val 
+                            ? 'border-[#00d4ff] bg-[#00d4ff]/10 text-[#00d4ff]' 
+                            : 'border-[#1e2a38] bg-[#080c10] text-slate-500 hover:border-slate-600 hover:text-slate-300'
+                        }`}
+                      >
+                        ${val.toLocaleString()}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Half/Full Kelly Toggle */}
+                <div className="space-y-2">
+                  <div className="flex justify-between items-center text-[10px] font-bold text-slate-400">
+                    <span>RISK PROFILE</span>
+                    <span className="text-slate-500">Multiplier</span>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2 h-[34px]">
+                    <button
+                      onClick={() => setUseHalfKelly(true)}
+                      className={`flex items-center justify-center rounded border text-xs font-bold transition-all ${
+                        useHalfKelly 
+                          ? 'border-[#00d4ff] bg-[#00d4ff]/10 text-[#00d4ff] shadow-[0_0_10px_rgba(0,212,255,0.05)]' 
+                          : 'border-[#1e2a38] bg-[#080c10] text-slate-500 hover:text-slate-300'
+                      }`}
+                    >
+                      HALF KELLY (0.5x)
+                    </button>
+                    <button
+                      onClick={() => setUseHalfKelly(false)}
+                      className={`flex items-center justify-center rounded border text-xs font-bold transition-all ${
+                        !useHalfKelly 
+                          ? 'border-[#ffab40] bg-[#ffab40]/10 text-[#ffab40] shadow-[0_0_10px_rgba(255,171,64,0.05)]' 
+                          : 'border-[#1e2a38] bg-[#080c10] text-slate-500 hover:text-slate-300'
+                      }`}
+                    >
+                      FULL KELLY (1.0x)
+                    </button>
+                  </div>
+                  <div className="text-[9px] text-slate-500 font-sans leading-tight">
+                    {useHalfKelly 
+                      ? 'Recommended for downside variance mitigation.' 
+                      : 'High-variance sizing targeting maximum growth speed.'}
+                  </div>
+                </div>
+              </div>
+
+              {/* Sizer Outputs */}
+              <div className="p-3.5 rounded-lg bg-[#080c10] border border-[#1e2a38] space-y-3.5">
+                <div className="grid grid-cols-2 gap-4 divide-x divide-[#1e2a38]">
+                  {/* Target Allocation */}
+                  <div className="space-y-1">
+                    <span className="text-[9px] text-slate-500 font-bold uppercase tracking-wider">Target Allocation</span>
+                    <div className="text-lg font-bold text-white">
+                      {(allocatedKelly * 100).toFixed(2)}%
+                    </div>
+                  </div>
+
+                  {/* Position Dollar Amount */}
+                  <div className="space-y-1 pl-4">
+                    <span className="text-[9px] text-slate-500 font-bold uppercase tracking-wider">Position Size</span>
+                    <div className={`text-lg font-bold ${allocatedKelly > 0 ? 'text-[#00e676]' : 'text-slate-400'}`}>
+                      ${positionAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Progress Bar representation */}
+                <div className="space-y-1">
+                  <div className="h-1.5 w-full bg-[#1e2a38] rounded-full overflow-hidden">
+                    <div 
+                      className={`h-full rounded-full transition-all duration-300 ${
+                        allocatedKelly > 0 ? 'bg-[#00e676]' : 'bg-slate-700'
+                      }`}
+                      style={{ width: `${allocatedKelly * 100}%` }}
+                    />
+                  </div>
+                </div>
+
+                {/* Math Details */}
+                <div className="text-[9px] text-slate-500 font-sans border-t border-[#1e2a38]/60 pt-2 flex items-center justify-between">
+                  <span>Sizing Formula: <code>(Edge / Odds) * Risk</code></span>
+                  {allocatedKelly > 0 ? (
+                    <span className="text-slate-400">
+                      ({edgeVal.toFixed(3)} / {oddsVal.toFixed(2)}) * {kellyMultiplier} = {(allocatedKelly * 100).toFixed(2)}%
+                    </span>
+                  ) : (
+                    <span className="text-[#ff5252] font-semibold">No favorable YES edge available</span>
+                  )}
+                </div>
+              </div>
+            </div>
 
             {/* Quick Summary Take */}
             <div className="space-y-2 select-text font-mono">

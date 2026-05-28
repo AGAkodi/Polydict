@@ -68,8 +68,7 @@ Run searches across X (Twitter) and the web to extract recent reactions, breakin
         { role: 'user', content: userPrompt }
       ],
       tools: [
-        { type: 'web_search' },
-        { type: 'x_search' }
+        { type: 'live_search' }
       ],
       temperature: 0.2,
       response_format: { type: 'json_object' }

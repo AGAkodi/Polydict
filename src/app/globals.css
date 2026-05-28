@@ -94,3 +94,70 @@ body {
   background: #141c26;
   border-color: var(--cyan-accent);
 }
+
+/* Fine Dot Grid Background Mesh */
+.bg-grid-pattern {
+  background-size: 24px 24px;
+  background-image: 
+    radial-gradient(circle, rgba(30, 42, 56, 0.25) 1.5px, transparent 1.5px);
+}
+
+/* Horizontal Scrolling Marquee animation */
+@keyframes marquee {
+  0% { transform: translateX(0%); }
+  100% { transform: translateX(-50%); }
+}
+
+.animate-marquee {
+  display: inline-flex;
+  gap: 3rem;
+  animation: marquee 35s linear infinite;
+}
+
+.animate-marquee:hover {
+  animation-play-state: paused;
+}
+
+/* Pulsing Terminal Matrix Cursor */
+@keyframes cursorPulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
+}
+
+.matrix-cursor::after {
+  content: '█';
+  color: #00e676;
+  font-size: 11px;
+  margin-left: 2px;
+  animation: cursorPulse 1s step-end infinite;
+}
+
+/* Glassmorphism panel with neon cyan highlight */
+.glass-panel {
+  background: rgba(13, 18, 25, 0.75);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(30, 42, 56, 0.6);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+}
+
+.glow-cyan-hover:hover {
+  box-shadow: 0 0 15px rgba(0, 212, 255, 0.15);
+  border-color: rgba(0, 212, 255, 0.4) !important;
+}
+
+/* Custom pop-in for overlays */
+@keyframes popIn {
+  from {
+    opacity: 0;
+    transform: scale(0.97) translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+.animate-pop-in {
+  animation: popIn 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
