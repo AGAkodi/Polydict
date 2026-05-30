@@ -61,34 +61,28 @@ export interface MergedMarket {
   isClobMatched: boolean;
 }
 
-// Category Mapping to Gamma API tag parameter
+// Category Mapping to Gamma API tag parameter (mapped to new keys)
 export const CATEGORY_TAG_MAP: Record<string, string | null> = {
   all: null,
   politics: 'politics',
   crypto: 'crypto',
   sports: 'sports',
+  economy: 'economy',
   science: 'science',
-  economics: 'economics',
   culture: 'culture',
   world: 'world',
-  ai: 'ai',
-  elections: 'elections',
-  finance: 'finance',
 };
 
-// Display label mappings
+// Display label mappings matching user specification
 export const CATEGORY_LABELS: Record<string, string> = {
   all: 'All',
-  politics: 'Politics',
+  politics: 'Politics & Geo-Politics',
   crypto: 'Crypto',
-  sports: 'Sports',
-  science: 'Science & Tech',
-  economics: 'Economics',
-  culture: 'Culture',
-  world: 'World',
-  ai: 'AI',
-  elections: 'Elections',
-  finance: 'Finance',
+  sports: 'Sports & Esports',
+  economy: 'Economy & Finance',
+  science: 'Science & Technology',
+  culture: 'Culture & Entertainment',
+  world: 'World News',
 };
 
 /**
@@ -124,12 +118,11 @@ export function fetchHttp1(url: string): Promise<string> {
 }
 
 /**
- * Fetch markets from Gamma API filtered by category tag
+ * Fetch markets from Gamma API with high limit (1000) to capture all predictions
  */
-export async function fetchGammaMarkets(categoryKey: string): Promise<GammaMarket[]> {
-  const category = categoryKey.toLowerCase();
-  const tagParam = category !== "all" ? `&tag_slug=${category}` : "";
-  const url = `https://gamma-api.polymarket.com/markets?active=true&closed=false&limit=100&order=volume&ascending=false${tagParam}`;
+export async function fetchGammaMarkets(categoryKey: string = 'all'): Promise<GammaMarket[]> {
+  // Always fetch a comprehensive list of the top 1000 active markets globally
+  const url = `https://gamma-api.polymarket.com/markets?active=true&closed=false&limit=1000&order=volume&ascending=false`;
 
   const rawData = await fetchHttp1(url);
   const markets = JSON.parse(rawData) as GammaMarket[];
@@ -155,6 +148,140 @@ export async function fetchClobMarkets(): Promise<ClobMarket[]> {
   }
   
   throw new Error(`CLOB API did not return array data: ${rawData.slice(0, 100)}`);
+}
+
+/**
+ * Advanced keyword/tag classification engine to accurately classify markets server-side with zero category bleed
+ */
+export function classifyMarket(m: GammaMarket): string {
+  const questionLower = (m.question || '').toLowerCase();
+  const descLower = (m.description || '').toLowerCase();
+  const tagsList = (m.tags || []).map(t => ({
+    name: (t.name || '').toLowerCase(),
+    slug: (t.slug || '').toLowerCase(),
+    label: (t.label || '').toLowerCase()
+  }));
+
+  // 1. Crypto Category keywords & tags (First Priority to completely avoid political/crypto bleed)
+  const cryptoKeywords = [
+    'crypto', 'bitcoin', 'btc', 'ether', 'eth', 'solana', 'sol', 'coin', 'token', 
+    'doge', 'memecoin', 'stablecoin', 'usdt', 'usdc', 'binance', 'coinbase', 
+    'blockchain', 'ethereum', 'cardano', 'ripple', 'xrp', 'litecoin', 'satoshi', 
+    'vitalik', 'base chain', 'nft', 'halving', 'defi'
+  ];
+  const isCrypto = cryptoKeywords.some(kw => questionLower.includes(kw) || descLower.includes(kw)) ||
+                   tagsList.some(t => cryptoKeywords.some(kw => t.name.includes(kw) || t.slug.includes(kw) || t.label.includes(kw)));
+  if (isCrypto) {
+    return CATEGORY_LABELS.crypto;
+  }
+
+  // 2. Politics & Geo-Politics Category
+  const politicsKeywords = [
+    'trump', 'biden', 'harris', 'democrat', 'republican', 'senate', 'house of representatives', 
+    'supreme court', 'election', 'presidency', 'president', 'gop', 'white house', 'cabinet', 
+    'parliament', 'prime minister', 'putin', 'zelensky', 'netanyahu', 'xi jinping', 'diplomacy', 
+    'treaty', 'sanctions', 'geopolitics', 'geo-politics', 'foreign policy', 'nato', 'un ', 
+    'united nations', 'taiwan', 'gaza', 'ukraine', 'israel', 'palestine', 'iran', 'north korea', 
+    'nuclear', 'tariff', 'border patrol', 'immigration', 'congress', 'governorship', 'governor', 
+    'mayor', 'political', 'referendum', 'impeachment', 'debates', 'vp nominee', 'vance', 'walz'
+  ];
+  const isPolitics = politicsKeywords.some(kw => questionLower.includes(kw) || descLower.includes(kw)) ||
+                     tagsList.some(t => t.name.includes('politic') || t.slug.includes('politic') || t.label.includes('politic') ||
+                                        t.name.includes('elect') || t.slug.includes('elect') || t.label.includes('elect') ||
+                                        politicsKeywords.some(kw => t.name.includes(kw) || t.slug.includes(kw) || t.label.includes(kw)));
+  if (isPolitics) {
+    return CATEGORY_LABELS.politics;
+  }
+
+  // 3. Sports & Esports Category
+  const sportsKeywords = [
+    'sports', 'nfl', 'nba', 'mlb', 'nhl', 'fifa', 'premier league', 'champions league', 
+    'world cup', 'soccer', 'football', 'basketball', 'baseball', 'hockey', 'tennis', 
+    'ufc', 'mma', 'boxing', 'olympics', 'super bowl', 'formula 1', 'f1', 'golf', 
+    'cricket', 'rugby', 'esports', 'twitch', 'league of legends', 'dota', 'counter-strike', 
+    'csgo', 'cs2', 'valorant', 'fortnite', 'starcraft', 'overwatch', 'vct', 'faker', 's1mple'
+  ];
+  const isSports = sportsKeywords.some(kw => questionLower.includes(kw) || descLower.includes(kw)) ||
+                   tagsList.some(t => t.name.includes('sport') || t.slug.includes('sport') || t.label.includes('sport') ||
+                                      t.name.includes('esport') || t.slug.includes('esport') || t.label.includes('esport') ||
+                                      t.name.includes('gaming') || t.slug.includes('gaming') || t.label.includes('gaming') ||
+                                      sportsKeywords.some(kw => t.name.includes(kw) || t.slug.includes(kw) || t.label.includes(kw)));
+  if (isSports) {
+    return CATEGORY_LABELS.sports;
+  }
+
+  // 4. Economy & Finance Category
+  const economyKeywords = [
+    'economy', 'finance', 'fed ', 'federal reserve', 'interest rate', 'inflation', 'cpi', 
+    'gdp', 'recession', 'jobs report', 'unemployment', 'stocks', 'stock market', 'nasdaq', 
+    's&p 500', 'dow jones', 'spx', 'market cap', 'ipo', 'bankruptcy', 'acquisition', 
+    'merger', 'bond yield', 'interest rates', 'treasury', 'powell', 'sec ', 'sec-regulated', 
+    'gold ', 'silver ', 'commodity', 'oil price', 'gas price', 'housing market'
+  ];
+  const isEconomy = economyKeywords.some(kw => questionLower.includes(kw) || descLower.includes(kw)) ||
+                    tagsList.some(t => t.name.includes('econom') || t.slug.includes('econom') || t.label.includes('econom') ||
+                                       t.name.includes('financ') || t.slug.includes('financ') || t.label.includes('financ') ||
+                                       t.name.includes('business') || t.slug.includes('business') || t.label.includes('business') ||
+                                       t.name.includes('stock') || t.slug.includes('stock') || t.label.includes('stock') ||
+                                       economyKeywords.some(kw => t.name.includes(kw) || t.slug.includes(kw) || t.label.includes(kw)));
+  if (isEconomy) {
+    return CATEGORY_LABELS.economy;
+  }
+
+  // 5. Science & Technology Category
+  const scienceKeywords = [
+    'science', 'technology', 'tech', 'ai', 'artificial intelligence', 'gpt', 'openai', 
+    'claude', 'gemini', 'nvidia', 'gpu', 'llama', 'meta', 'apple', 'google', 'microsoft', 
+    'spacex', 'nasa', 'mars', 'rocket', 'spaceflight', 'fusion', 'quantum', 'supercomputer', 
+    'cancer', 'vaccine', 'fda approval', 'climate change', 'electric vehicle', 'tesla', 
+    'cybersecurity', 'hacker', 'software', 'hardware', 'silicon', 'semiconductor', 'telecom'
+  ];
+  const isScience = scienceKeywords.some(kw => questionLower.includes(kw) || descLower.includes(kw)) ||
+                    tagsList.some(t => t.name.includes('science') || t.slug.includes('science') || t.label.includes('science') ||
+                                       t.name.includes('tech') || t.slug.includes('tech') || t.label.includes('tech') ||
+                                       t.name.includes('ai') || t.slug.includes('ai') || t.label.includes('ai') ||
+                                       t.name.includes('space') || t.slug.includes('space') || t.label.includes('space') ||
+                                       scienceKeywords.some(kw => t.name.includes(kw) || t.slug.includes(kw) || t.label.includes(kw)));
+  if (isScience) {
+    return CATEGORY_LABELS.science;
+  }
+
+  // 6. Culture & Entertainment Category
+  const cultureKeywords = [
+    'culture', 'entertainment', 'oscar', 'academy awards', 'grammy', 'emmy', 'hollywood', 
+    'movie', 'film', 'box office', 'netflix', 'celebrity', 'taylor swift', 'kanye', 'elon musk', 
+    'mrbeast', 'youtube', 'streamer', 'tiktok', 'album', 'billboard', 'rap ', 'pop music', 
+    'met gala', 'fashion', 'superbowl halftime', 'drake', 'kendrick', 'grand theft auto', 'gta 6', 
+    'award'
+  ];
+  const isCulture = cultureKeywords.some(kw => questionLower.includes(kw) || descLower.includes(kw)) ||
+                    tagsList.some(t => t.name.includes('cultur') || t.slug.includes('cultur') || t.label.includes('cultur') ||
+                                       t.name.includes('pop') || t.slug.includes('pop') || t.label.includes('pop') ||
+                                       t.name.includes('entertainment') || t.slug.includes('entertainment') || t.label.includes('entertainment') ||
+                                       t.name.includes('movie') || t.slug.includes('movie') || t.label.includes('movie') ||
+                                       t.name.includes('music') || t.slug.includes('music') || t.label.includes('music') ||
+                                       cultureKeywords.some(kw => t.name.includes(kw) || t.slug.includes(kw) || t.label.includes(kw)));
+  if (isCulture) {
+    return CATEGORY_LABELS.culture;
+  }
+
+  // 7. World News Category
+  const worldKeywords = [
+    'world news', 'disaster', 'earthquake', 'hurricane', 'tsunami', 'wildfire', 'pandemic', 
+    'epidemic', 'who ', 'weather', 'global warming', 'protest', 'strike', 'court case', 
+    'verdict', 'trial', 'royal family', 'king charles', 'pope', 'unemployment rate', 
+    'census', 'crime', 'aviation', 'crash', 'shipwreck', 'space debris', 'world'
+  ];
+  const isWorld = worldKeywords.some(kw => questionLower.includes(kw) || descLower.includes(kw)) ||
+                  tagsList.some(t => t.name.includes('world') || t.slug.includes('world') || t.label.includes('world') ||
+                                     t.name.includes('news') || t.slug.includes('news') || t.label.includes('news') ||
+                                     worldKeywords.some(kw => t.name.includes(kw) || t.slug.includes(kw) || t.label.includes(kw)));
+  if (isWorld) {
+    return CATEGORY_LABELS.world;
+  }
+
+  // Fallback to World News
+  return CATEGORY_LABELS.world;
 }
 
 /**
@@ -261,12 +388,25 @@ export async function getMergedMarkets(categoryKey: string = 'all'): Promise<Mer
       noPrice,
       volume: gamma.volumeNum || (gamma.volume ? parseFloat(gamma.volume) : 0),
       liquidity: gamma.liquidityNum || 0,
-      category: CATEGORY_LABELS[categoryKey.toLowerCase()] || 'All',
+      category: classifyMarket(gamma),
       tags: gamma.tags || [],
       image: gamma.image || '',
       icon: gamma.icon || '',
       isClobMatched,
     });
+  }
+
+  // Handle legacy keys mapping for safety
+  let activeKey = categoryKey.toLowerCase();
+  if (activeKey === 'elections') activeKey = 'politics';
+  if (activeKey === 'ai') activeKey = 'science';
+  if (activeKey === 'finance' || activeKey === 'economics') activeKey = 'economy';
+
+  if (activeKey !== 'all') {
+    const targetLabel = CATEGORY_LABELS[activeKey];
+    if (targetLabel) {
+      return mergedList.filter(m => m.category === targetLabel).sort((a, b) => b.volume - a.volume);
+    }
   }
 
   // Sort by volume descending

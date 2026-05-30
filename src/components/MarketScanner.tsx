@@ -36,45 +36,10 @@ export default function MarketScanner({
     setVisibleCount(ITEMS_PER_PAGE);
   }, [activeCategory, searchQuery]);
 
-  // Safety net filtering on markets
+  // Safety net filtering on markets - trust the API response directly as requested
   const safetyFilteredMarkets = useMemo(() => {
-    if (!markets) return [];
-
-    const cryptoKeywords = ['crypto', 'bitcoin', 'btc', 'ether', 'eth', 'solana', 'sol', 'coin', 'token', 'doge', 'memecoin', 'stablecoin', 'usdt', 'usdc', 'binance', 'coinbase', 'blockchain'];
-
-    return markets.filter((m: any) => {
-      const questionLower = m.question?.toLowerCase() || '';
-      const tagsList: string[] = (m.tags || []).map((t: any) => t.slug?.toLowerCase() || '');
-      
-      const isCryptoByKeyword = cryptoKeywords.some(keyword => questionLower.includes(keyword));
-      const isCryptoByTag = tagsList.includes('crypto') || tagsList.some(slug => cryptoKeywords.some(kw => slug.includes(kw)));
-      const isCrypto = isCryptoByKeyword || isCryptoByTag;
-
-      if (activeCategory === "all") {
-        return true;
-      }
-      
-      if (activeCategory === "crypto") {
-        // Must be crypto
-        return isCrypto;
-      }
-
-      if (activeCategory === "politics" || activeCategory === "elections") {
-        // Must NOT be crypto
-        if (isCrypto) return false;
-        
-        // Must match politics tags or category
-        return m.category?.toLowerCase() === activeCategory.toLowerCase() ||
-               tagsList.includes(activeCategory.toLowerCase()) ||
-               (m.tags || []).some((t: any) => t.label?.toLowerCase() === activeCategory.toLowerCase());
-      }
-
-      // Default fallback safety net
-      return m.category?.toLowerCase() === activeCategory.toLowerCase() ||
-             tagsList.includes(activeCategory.toLowerCase()) ||
-             (m.tags || []).some((t: any) => t.label?.toLowerCase() === activeCategory.toLowerCase());
-    });
-  }, [markets, activeCategory]);
+    return markets || [];
+  }, [markets]);
 
   // Find the trending featured market of the day (highest volume market in currently loaded category set)
   const featuredMarket = useMemo(() => {
