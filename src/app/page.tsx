@@ -20,6 +20,7 @@ export default function Home() {
   const [activeCategory, setActiveCategory] = useState('all');
   const [selectedMarket, setSelectedMarket] = useState<MergedMarket | null>(null);
   const [activeAnalysis, setActiveAnalysis] = useState<any>(null);
+  const [chatFocusTrigger, setChatFocusTrigger] = useState(0);
   const [reanalyzeCount, setReanalyzeCount] = useState(0);
   const [lastUpdated, setLastUpdated] = useState<string>('--:--:--');
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -224,12 +225,18 @@ export default function Home() {
             pricesError={!!pricesError}
             onAnalysisLoaded={handleAnalysisLoaded}
             triggerReanalyzeCount={reanalyzeCount}
+            onAskAI={() => setChatFocusTrigger((prev) => prev + 1)}
           />
         </section>
 
         {/* Panel 3 - Chat terminal (Right Sidebar) */}
         <section className="w-[370px] shrink-0 h-full">
-          <ChatPanel market={selectedMarket} analysis={activeAnalysis} markets={enrichedMarkets} />
+          <ChatPanel 
+            market={selectedMarket} 
+            analysis={activeAnalysis} 
+            markets={enrichedMarkets} 
+            chatFocusTrigger={chatFocusTrigger}
+          />
         </section>
       </div>
 

@@ -18,6 +18,7 @@ export interface GammaMarket {
   icon?: string;
   clobTokenIds?: string; // Stringified JSON array of token IDs
   acceptingOrders?: boolean;
+  tags?: { id: string; name: string; slug: string; label?: string }[];
 }
 
 export interface ClobToken {
@@ -54,6 +55,7 @@ export interface MergedMarket {
   volume: number;
   liquidity: number;
   category: string;
+  tags?: any[];
   image: string;
   icon: string;
   isClobMatched: boolean;
@@ -125,11 +127,9 @@ export function fetchHttp1(url: string): Promise<string> {
  * Fetch markets from Gamma API filtered by category tag
  */
 export async function fetchGammaMarkets(categoryKey: string): Promise<GammaMarket[]> {
-  const tag = CATEGORY_TAG_MAP[categoryKey.toLowerCase()] || null;
-  let url = 'https://gamma-api.polymarket.com/markets?active=true&closed=false&limit=100&order=volume&ascending=false';
-  if (tag) {
-    url += `&tag=${tag}`;
-  }
+  const category = categoryKey.toLowerCase();
+  const tagParam = category !== "all" ? `&tag_slug=${category}` : "";
+  const url = `https://gamma-api.polymarket.com/markets?active=true&closed=false&limit=100&order=volume&ascending=false${tagParam}`;
 
   const rawData = await fetchHttp1(url);
   const markets = JSON.parse(rawData) as GammaMarket[];
@@ -262,6 +262,7 @@ export async function getMergedMarkets(categoryKey: string = 'all'): Promise<Mer
       volume: gamma.volumeNum || (gamma.volume ? parseFloat(gamma.volume) : 0),
       liquidity: gamma.liquidityNum || 0,
       category: CATEGORY_LABELS[categoryKey.toLowerCase()] || 'All',
+      tags: gamma.tags || [],
       image: gamma.image || '',
       icon: gamma.icon || '',
       isClobMatched,

@@ -111,7 +111,7 @@ body {
 .animate-marquee {
   display: inline-flex;
   gap: 3rem;
-  animation: marquee 35s linear infinite;
+  animation: marquee 60s linear infinite;
 }
 
 .animate-marquee:hover {
@@ -160,4 +160,28 @@ body {
 
 .animate-pop-in {
   animation: popIn 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* Pulsing border animations matching verdict colors */
+@keyframes borderPulseYes {
+  0%, 100% { border-color: rgba(0, 230, 118, 0.4); box-shadow: 0 0 4px rgba(0, 230, 118, 0.1); }
+  50% { border-color: rgba(0, 230, 118, 0.8); box-shadow: 0 0 16px rgba(0, 230, 118, 0.25); }
+}
+@keyframes borderPulseNo {
+  0%, 100% { border-color: rgba(255, 82, 82, 0.4); box-shadow: 0 0 4px rgba(255, 82, 82, 0.1); }
+  50% { border-color: rgba(255, 82, 82, 0.8); box-shadow: 0 0 16px rgba(255, 82, 82, 0.25); }
+}
+@keyframes borderPulseSkip {
+  0%, 100% { border-color: rgba(255, 171, 64, 0.4); box-shadow: 0 0 4px rgba(255, 171, 64, 0.1); }
+  50% { border-color: rgba(255, 171, 64, 0.8); box-shadow: 0 0 16px rgba(255, 171, 64, 0.25); }
+}
+
+.animate-pulse-yes {
+  animation: borderPulseYes 2.5s infinite ease-in-out;
+}
+.animate-pulse-no {
+  animation: borderPulseNo 2.5s infinite ease-in-out;
+}
+.animate-pulse-skip {
+  animation: borderPulseSkip 2.5s infinite ease-in-out;
 }

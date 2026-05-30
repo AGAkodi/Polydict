@@ -10,9 +10,10 @@ interface ChatPanelProps {
   market: MergedMarket | null;
   analysis: any; // AnalysisResult from prediction card
   markets?: MergedMarket[]; // All markets for cross-market comparisons
+  chatFocusTrigger?: number;
 }
 
-export default function ChatPanel({ market, analysis, markets }: ChatPanelProps) {
+export default function ChatPanel({ market, analysis, markets, chatFocusTrigger }: ChatPanelProps) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputMessage, setInputMessage] = useState('');
   const [loading, setLoading] = useState(false);
@@ -20,6 +21,13 @@ export default function ChatPanel({ market, analysis, markets }: ChatPanelProps)
   const [injectedComparisonContext, setInjectedComparisonContext] = useState<string | null>(null);
   const [copiedId, setCopiedId] = useState<number | null>(null);
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
+  const inputRef = useRef<HTMLInputElement | null>(null);
+
+  useEffect(() => {
+    if (chatFocusTrigger !== undefined && chatFocusTrigger > 0) {
+      inputRef.current?.focus();
+    }
+  }, [chatFocusTrigger]);
 
   const handleCopyMessage = (text: string, id: number) => {
     navigator.clipboard.writeText(text).then(() => {
@@ -325,6 +333,7 @@ Description: ${target.description ?? 'N/A'}
 
         <form onSubmit={handleFormSubmit} className="p-3 flex gap-2">
           <input
+            ref={inputRef}
             type="text"
             value={inputMessage}
             onChange={(e) => handleInputChange(e.target.value)}

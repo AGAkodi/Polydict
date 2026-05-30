@@ -12,16 +12,6 @@ export default function MarketItem({ market, isSelected, onSelect }: MarketItemP
   const yesPricePct = Math.round(market.yesPrice * 100);
   const countdown = getCountdown(market.endDateIso || market.endDate);
 
-  // YES price pill threshold styling: green >=60%, amber 35-60%, red <35%
-  let oddsPillClass = '';
-  if (yesPricePct >= 60) {
-    oddsPillClass = 'border-[#00e676]/20 bg-[#00e676]/10 text-[#00e676]';
-  } else if (yesPricePct >= 35) {
-    oddsPillClass = 'border-[#ffab40]/20 bg-[#ffab40]/10 text-[#ffab40]';
-  } else {
-    oddsPillClass = 'border-[#ff5252]/20 bg-[#ff5252]/10 text-[#ff5252]';
-  }
-
   const getCountdownColor = (severity: string) => {
     switch (severity) {
       case 'red':
@@ -56,9 +46,8 @@ export default function MarketItem({ market, isSelected, onSelect }: MarketItemP
         {/* Real-Time Price Pill and Metadata Row */}
         <div className="flex items-center justify-between mt-1">
           {/* YES Odds Pill Badge - weight 600 */}
-          <div className={`flex items-center gap-1.5 px-2.5 py-1 rounded-sm border text-[10px] font-semibold font-mono tracking-wider ${oddsPillClass}`}>
-            <span>YES</span>
-            <span className="font-semibold text-[11px]">{yesPricePct}%</span>
+          <div className="flex items-center px-2.5 py-1 rounded-sm border border-slate-700 bg-slate-800/40 text-slate-400 text-[10px] font-semibold font-mono tracking-wider">
+            <span>{yesPricePct}% YES</span>
           </div>
 
           {/* Volume and Countdown metadata */}
