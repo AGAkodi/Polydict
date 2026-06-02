@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 
 export async function POST(req: NextRequest) {
   try {
-    const { market, analysis, signals, history, message } = await req.json();
+    const { market, analysis, signals, history, message, marketSentiment } = await req.json();
 
     let systemPrompt = "";
 
@@ -38,6 +38,12 @@ Sentiment: ${signals?.sentiment ?? "unavailable"}
 Momentum: ${signals?.momentum ?? "unavailable"}
 Key posts: ${signals?.keyPosts?.join(" | ") ?? "none"}
 Breaking news: ${signals?.breakingNews?.join(" | ") ?? "none"}
+
+--- POLYMARKET CROWD DATA ---
+24h trend: ${marketSentiment?.trend ?? "unknown"}
+Crowd sentiment: ${marketSentiment?.polymarketSentiment ? (marketSentiment.polymarketSentiment.bullVolume / Math.max(marketSentiment.polymarketSentiment.bullVolume + marketSentiment.polymarketSentiment.bearVolume, 1) * 100).toFixed(0) + "% bullish" : "unavailable"}
+24h price change: ${marketSentiment?.polymarketSentiment?.change24h ? (marketSentiment.polymarketSentiment.change24h * 100).toFixed(1) + "pp" : "unavailable"}
+Liquidity: ${marketSentiment?.polymarketSentiment?.liquidity ?? "unavailable"}
 ---
 
 RESPONSE RULES:

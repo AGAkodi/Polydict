@@ -10,8 +10,19 @@ export default function CategoryTabs({ activeCategory, onSelectCategory }: Categ
   const categories = Object.keys(CATEGORY_LABELS);
 
   return (
-    <div className="w-full overflow-x-auto no-scrollbar border-b border-[#1e2a38] bg-[#0d1219] py-2 px-3 shrink-0">
-      <div className="flex gap-2 min-w-max">
+    <div 
+      className="w-full overflow-x-auto no-scrollbar"
+      style={{
+        height: '48px',
+        background: 'var(--bg-secondary)',
+        borderBottom: '1px solid var(--border)',
+        display: 'flex',
+        alignItems: 'center',
+        padding: '0 8px',
+        flexShrink: 0,
+      }}
+    >
+      <div className="flex h-full min-w-max items-center">
         {categories.map((key) => {
           const isActive = activeCategory.toLowerCase() === key.toLowerCase();
           const label = CATEGORY_LABELS[key];
@@ -20,11 +31,31 @@ export default function CategoryTabs({ activeCategory, onSelectCategory }: Categ
             <button
               key={key}
               onClick={() => onSelectCategory(key)}
-              className={`px-3 py-1.5 rounded-sm text-xs font-semibold font-mono tracking-tight transition-all duration-150 cursor-pointer select-none border ${
-                isActive
-                  ? 'border-[#00d4ff] bg-[#00d4ff]/10 text-[#00d4ff]'
-                  : 'border-[#1e2a38] bg-[#111820] text-slate-400 hover:text-slate-200 hover:bg-[#1e2a38]/60'
-              }`}
+              style={{
+                height: '100%',
+                padding: '0 16px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontFamily: 'var(--font-sans)',
+                fontSize: '11px',
+                fontWeight: 500,
+                textTransform: 'uppercase',
+                letterSpacing: '0.08em',
+                cursor: 'pointer',
+                background: 'transparent',
+                border: 'none',
+                borderBottom: isActive ? '2px solid var(--accent)' : '2px solid transparent',
+                color: isActive ? 'var(--accent)' : 'var(--text-muted)',
+                outline: 'none',
+                transition: 'all 0.15s ease-in-out',
+              }}
+              onMouseEnter={(e) => {
+                if (!isActive) e.currentTarget.style.color = 'var(--text-secondary)';
+              }}
+              onMouseLeave={(e) => {
+                if (!isActive) e.currentTarget.style.color = 'var(--text-muted)';
+              }}
             >
               {label}
             </button>

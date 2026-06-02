@@ -15,53 +15,109 @@ export default function MarketItem({ market, isSelected, onSelect }: MarketItemP
   const getCountdownColor = (severity: string) => {
     switch (severity) {
       case 'red':
-        return 'text-[#ff5252] font-semibold';
+        return 'var(--red)';
       case 'amber':
-        return 'text-[#ffab40] font-medium';
+        return 'var(--amber)';
       case 'closed':
-        return 'text-slate-600';
+        return 'var(--text-muted)';
       case 'gray':
       default:
-        return 'text-slate-400';
+        return 'var(--text-secondary)';
     }
   };
 
   return (
     <div
       onClick={onSelect}
-      className={`group relative p-3 border-b border-[#1e2a38] transition-all duration-150 cursor-pointer select-none ${
-        isSelected
-          ? 'bg-[#111820]/80 border-l-2 border-l-[#00d4ff]'
-          : 'hover:bg-[#111820]/40 border-l-2 border-l-transparent'
-      }`}
+      style={{
+        padding: '14px 16px',
+        borderBottom: '1px solid var(--border)',
+        cursor: 'pointer',
+        transition: 'background 0.15s, border-left 0.15s',
+        background: isSelected ? 'var(--accent-glow)' : 'transparent',
+        borderLeft: isSelected ? '2px solid var(--accent)' : '2px solid transparent',
+        display: 'flex',
+        flexDirection: 'column',
+      }}
+      onMouseEnter={(e) => {
+        if (!isSelected) e.currentTarget.style.background = 'rgba(255,255,255,0.025)';
+      }}
+      onMouseLeave={(e) => {
+        if (!isSelected) e.currentTarget.style.background = 'transparent';
+      }}
     >
-      <div className="space-y-2">
-        {/* Question Title - weight 500 */}
-        <h4 className={`text-xs font-medium font-sans line-clamp-2 leading-relaxed transition-colors ${
-          isSelected ? 'text-white' : 'text-slate-300 group-hover:text-white'
-        }`}>
-          {market.question}
-        </h4>
+      {/* Market question text */}
+      <h4 
+        style={{
+          fontSize: '12px',
+          fontWeight: '500',
+          color: 'var(--text-primary)',
+          lineHeight: '1.4',
+          marginBottom: '6px',
+          fontFamily: 'var(--font-sans)',
+          margin: '0 0 6px 0',
+        }}
+        className="line-clamp-2"
+      >
+        {market.question}
+      </h4>
 
-        {/* Real-Time Price Pill and Metadata Row */}
-        <div className="flex items-center justify-between mt-1">
-          {/* YES Odds Pill Badge - weight 600 */}
-          <div className="flex items-center px-2.5 py-1 rounded-sm border border-slate-700 bg-slate-800/40 text-slate-400 text-[10px] font-semibold font-mono tracking-wider">
-            <span>{yesPricePct}% YES</span>
+      {/* Odds pill and Metadata Row */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '4px' }}>
+        {/* Odds pill — neutral, no color bias */}
+        <div 
+          style={{
+            fontFamily: 'var(--font-mono)',
+            fontSize: '11px',
+            fontWeight: '600',
+            padding: '2px 8px',
+            borderRadius: '4px',
+            background: 'rgba(255,255,255,0.05)',
+            border: '1px solid var(--border)',
+            color: 'var(--text-secondary)',
+            display: 'inline-flex',
+            alignItems: 'center',
+          }}
+        >
+          {yesPricePct}% YES
+          {market.priceChange24h !== 0 && market.priceChange24h !== undefined && (
+            <span style={{
+              fontFamily: 'var(--font-mono)',
+              fontSize: '10px',
+              color: market.priceChange24h > 0 ? 'var(--green)' : 'var(--red)',
+              marginLeft: '6px',
+            }}>
+              {market.priceChange24h > 0 ? '↑' : '↓'}
+              {Math.abs(market.priceChange24h * 100).toFixed(1)}pp
+            </span>
+          )}
+        </div>
+
+        {/* Volume & Countdown metadata */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          {/* Volume tag */}
+          <div 
+            style={{
+              fontFamily: 'var(--font-mono)',
+              fontSize: '10px',
+              color: 'var(--text-muted)',
+            }}
+          >
+            VOL: <span style={{ color: 'var(--text-secondary)' }}>{formatVolume(market.volume)}</span>
           </div>
 
-          {/* Volume and Countdown metadata */}
-          <div className="flex items-center gap-3 text-[10px] font-mono text-slate-500">
-            <div>
-              <span className="font-medium">VOL:</span>{' '}
-              <span className="text-slate-300 font-semibold">{formatVolume(market.volume)}</span>
-            </div>
-            <div className="flex items-center gap-1">
-              <span className="font-medium">TIME:</span>{' '}
-              <span className={`font-semibold ${getCountdownColor(countdown.severity)}`}>
-                {countdown.label.toUpperCase()}
-              </span>
-            </div>
+          {/* Time Remaining tag */}
+          <div 
+            style={{
+              fontFamily: 'var(--font-mono)',
+              fontSize: '10px',
+              color: 'var(--text-muted)',
+            }}
+          >
+            TIME:{' '}
+            <span style={{ color: getCountdownColor(countdown.severity), fontWeight: 600 }}>
+              {countdown.label.toUpperCase()}
+            </span>
           </div>
         </div>
       </div>

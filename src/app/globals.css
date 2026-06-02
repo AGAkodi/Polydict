@@ -1,68 +1,80 @@
-/* Import Inter from Google Fonts */
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap');
 
 @import "tailwindcss";
 
 :root {
-  --background: #080c10;
-  --foreground: #f1f5f9;
-  
-  --panel-bg: #0d1219;
-  --card-bg: #111820;
-  --border-color: #1e2a38;
-  
-  --cyan-accent: #00d4ff;
-  --yes-green: #00e676;
-  --no-red: #ff5252;
-  --skip-amber: #ffab40;
+  --bg-primary: #0B0F14;
+  --bg-secondary: #111827;
+  --bg-tertiary: #0F172A;
+  --bg-panel: #111827;
+  --bg-card: #0F172A;
+  --accent: #00D1FF;
+  --accent-glow: rgba(0, 209, 255, 0.12);
+  --accent-border: rgba(0, 209, 255, 0.2);
+  --green: #00E676;
+  --green-glow: rgba(0, 230, 118, 0.12);
+  --red: #FF5252;
+  --red-glow: rgba(255, 82, 82, 0.12);
+  --amber: #FFB74D;
+  --amber-glow: rgba(255, 183, 77, 0.12);
+  --text-primary: #F1F5F9;
+  --text-secondary: #94A3B8;
+  --text-muted: #475569;
+  --border: rgba(255, 255, 255, 0.06);
+  --border-accent: rgba(0, 209, 255, 0.2);
+  --font-sans: 'Inter', sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
+  --radius: 12px;
+  --radius-sm: 8px;
+}
+
+* {
+  font-family: var(--font-sans);
+  box-sizing: border-box;
 }
 
 body {
-  background-color: var(--background);
-  color: var(--foreground);
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-  font-weight: 400;
+  background: var(--bg-primary);
+  color: var(--text-primary);
   overflow: hidden;
+  height: 100vh;
   margin: 0;
   padding: 0;
-  height: 100vh;
   width: 100vw;
-  position: relative;
 }
 
-/* Custom fonts styling - making sure all UI elements use Inter */
+/* Scrollbar */
+::-webkit-scrollbar { 
+  width: 4px; 
+  height: 4px;
+}
+::-webkit-scrollbar-track { 
+  background: transparent; 
+}
+::-webkit-scrollbar-thumb { 
+  background: rgba(0, 209, 255, 0.15); 
+  border-radius: 2px; 
+}
+::-webkit-scrollbar-thumb:hover { 
+  background: rgba(0, 209, 255, 0.3); 
+}
+
+/* Custom fonts styling */
 .font-mono {
-  font-family: 'Inter', monospace !important;
-  font-feature-settings: "tnum" 1; /* Tabular numbers for clean tabular lining */
+  font-family: var(--font-mono) !important;
+  font-feature-settings: "tnum" 1;
 }
 
 .font-sans {
-  font-family: 'Inter', sans-serif !important;
+  font-family: var(--font-sans) !important;
 }
 
-/* Console / Trading Scrollbar styling */
-::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
-}
-::-webkit-scrollbar-track {
-  background: var(--background);
-}
-::-webkit-scrollbar-thumb {
-  background: var(--border-color);
-  border-radius: 2px;
-}
-::-webkit-scrollbar-thumb:hover {
-  background: var(--cyan-accent);
-}
-
-/* Custom scrollbar behaviors */
 .no-scrollbar::-webkit-scrollbar {
   display: none;
 }
 .no-scrollbar {
-  -ms-overflow-style: none;  /* IE and Edge */
-  scrollbar-width: none;  /* Firefox */
+  -ms-overflow-style: none;
+  scrollbar-width: none;
 }
 
 /* Smooth layout animations */
@@ -81,25 +93,11 @@ body {
   animation: fadeIn 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
-/* Glassy retro console styling */
-.retro-card {
-  background: var(--card-bg);
-  border: 1px solid var(--border-color);
-}
-
-.retro-card-hover {
-  transition: all 0.15s ease-in-out;
-}
-.retro-card-hover:hover {
-  background: #141c26;
-  border-color: var(--cyan-accent);
-}
-
 /* Fine Dot Grid Background Mesh */
 .bg-grid-pattern {
   background-size: 24px 24px;
   background-image: 
-    radial-gradient(circle, rgba(30, 42, 56, 0.25) 1.5px, transparent 1.5px);
+    radial-gradient(circle, rgba(0, 209, 255, 0.03) 1.5px, transparent 1.5px);
 }
 
 /* Horizontal Scrolling Marquee animation */
@@ -126,54 +124,24 @@ body {
 
 .matrix-cursor::after {
   content: '█';
-  color: #00e676;
+  color: var(--accent);
   font-size: 11px;
   margin-left: 2px;
   animation: cursorPulse 1s step-end infinite;
 }
 
-/* Glassmorphism panel with neon cyan highlight */
-.glass-panel {
-  background: rgba(13, 18, 25, 0.75);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  border: 1px solid rgba(30, 42, 56, 0.6);
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
-}
-
-.glow-cyan-hover:hover {
-  box-shadow: 0 0 15px rgba(0, 212, 255, 0.15);
-  border-color: rgba(0, 212, 255, 0.4) !important;
-}
-
-/* Custom pop-in for overlays */
-@keyframes popIn {
-  from {
-    opacity: 0;
-    transform: scale(0.97) translateY(8px);
-  }
-  to {
-    opacity: 1;
-    transform: scale(1) translateY(0);
-  }
-}
-
-.animate-pop-in {
-  animation: popIn 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-}
-
 /* Pulsing border animations matching verdict colors */
 @keyframes borderPulseYes {
-  0%, 100% { border-color: rgba(0, 230, 118, 0.4); box-shadow: 0 0 4px rgba(0, 230, 118, 0.1); }
-  50% { border-color: rgba(0, 230, 118, 0.8); box-shadow: 0 0 16px rgba(0, 230, 118, 0.25); }
+  0%, 100% { border-color: rgba(0, 230, 118, 0.2); box-shadow: 0 0 4px rgba(0, 230, 118, 0.05); }
+  50% { border-color: rgba(0, 230, 118, 0.5); box-shadow: 0 0 12px rgba(0, 230, 118, 0.15); }
 }
 @keyframes borderPulseNo {
-  0%, 100% { border-color: rgba(255, 82, 82, 0.4); box-shadow: 0 0 4px rgba(255, 82, 82, 0.1); }
-  50% { border-color: rgba(255, 82, 82, 0.8); box-shadow: 0 0 16px rgba(255, 82, 82, 0.25); }
+  0%, 100% { border-color: rgba(255, 82, 82, 0.2); box-shadow: 0 0 4px rgba(255, 82, 82, 0.05); }
+  50% { border-color: rgba(255, 82, 82, 0.5); box-shadow: 0 0 12px rgba(255, 82, 82, 0.15); }
 }
 @keyframes borderPulseSkip {
-  0%, 100% { border-color: rgba(255, 171, 64, 0.4); box-shadow: 0 0 4px rgba(255, 171, 64, 0.1); }
-  50% { border-color: rgba(255, 171, 64, 0.8); box-shadow: 0 0 16px rgba(255, 171, 64, 0.25); }
+  0%, 100% { border-color: rgba(255, 183, 77, 0.2); box-shadow: 0 0 4px rgba(255, 183, 77, 0.05); }
+  50% { border-color: rgba(255, 183, 77, 0.5); box-shadow: 0 0 12px rgba(255, 183, 77, 0.15); }
 }
 
 .animate-pulse-yes {

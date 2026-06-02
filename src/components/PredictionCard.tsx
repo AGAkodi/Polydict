@@ -33,6 +33,7 @@ interface PredictionCardProps {
   onAnalysisLoaded: (analysis: AnalysisResult) => void;
   triggerReanalyzeCount: number;
   onAskAI?: () => void;
+  marketSentiment?: any;
 }
 
 const STORAGE_KEY_PREFIX = 'analysis_';
@@ -44,13 +45,44 @@ const getConciseReasoning = (text: string) => {
   return sentences.slice(0, 3).join("").trim();
 };
 
+function getMarketHealthScore(market: any, analysis: any): number {
+  let score = 35;
+
+  if (market.volume > 1_000_000) score += 20;
+  else if (market.volume > 500_000) score += 14;
+  else if (market.volume > 100_000) score += 8;
+  else if (market.volume > 10_000) score += 3;
+
+  const edgePct = Math.abs((analysis?.edge ?? 0) * 100);
+  if (edgePct >= 20) score += 20;
+  else if (edgePct >= 15) score += 14;
+  else if (edgePct >= 10) score += 10;
+  else if (edgePct >= 5) score += 5;
+
+  const daysLeft = market.endDate
+    ? Math.max(0, (new Date(market.endDate).getTime() - Date.now()) / 86400000)
+    : 999;
+  if (daysLeft <= 7) score += 15;
+  else if (daysLeft <= 30) score += 10;
+  else if (daysLeft <= 90) score += 5;
+
+  const sentiment = analysis?.signals?.sentiment ?? analysis?.grokSignals?.sentiment;
+  if (
+    (analysis?.verdict === "YES" && sentiment === "bull") ||
+    (analysis?.verdict === "NO" && sentiment === "bear")
+  ) score += 10;
+
+  return Math.max(0, Math.min(100, score));
+}
+
 export default function PredictionCard({ 
   market, 
   livePrices, 
   pricesError, 
   onAnalysisLoaded, 
   triggerReanalyzeCount,
-  onAskAI
+  onAskAI,
+  marketSentiment
 }: PredictionCardProps) {
   const [analysis, setAnalysis] = useState<AnalysisResult | null>(null);
   const [analyzedAtPrice, setAnalyzedAtPrice] = useState<number | null>(null);
@@ -259,14 +291,36 @@ export default function PredictionCard({
 
   if (pricesError) {
     return (
-      <div className="h-full flex flex-col items-center justify-center p-8 bg-[#080c10] border-r border-[#1e2a38] text-center select-none animate-fade-in font-mono">
+      <div 
+        className="h-full flex flex-col items-center justify-center p-8 text-center select-none animate-fade-in font-mono"
+        style={{
+          background: 'var(--bg-primary)',
+          borderRight: '1px solid var(--border)',
+        }}
+      >
         <div className="max-w-md space-y-4">
-          <div className="mx-auto w-16 h-16 rounded-2xl bg-[#ff5252]/5 border border-[#ff5252]/15 flex items-center justify-center text-[#ff5252] text-2xl font-bold animate-pulse">
+          <div 
+            style={{
+              margin: '0 auto',
+              width: '64px',
+              height: '64px',
+              borderRadius: 'var(--radius)',
+              background: 'rgba(255, 82, 82, 0.05)',
+              border: '1px solid rgba(255, 82, 82, 0.15)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: 'var(--red)',
+              fontSize: '24px',
+              fontWeight: 'bold',
+            }}
+            className="animate-pulse"
+          >
             ERR
           </div>
           <div className="space-y-2">
-            <h3 className="text-sm font-bold text-[#ff5252]">Polymarket CLOB API Offline</h3>
-            <p className="text-xs text-slate-500 leading-relaxed font-sans">
+            <h3 style={{ fontSize: '14px', fontWeight: 'bold', color: 'var(--red)', margin: '16px 0 8px 0' }}>Polymarket CLOB API Offline</h3>
+            <p style={{ fontSize: '12px', color: 'var(--text-secondary)', lineHeight: '1.6', fontFamily: 'var(--font-sans)', margin: 0 }}>
               Live price feeds could not be retrieved from the Polymarket CLOB order book. Telemetry operations are paused to prevent stale or simulated data usage.
             </p>
           </div>
@@ -277,21 +331,55 @@ export default function PredictionCard({
 
   if (!market) {
     return (
-      <div className="h-full flex flex-col bg-[#080c10] border-r border-[#1e2a38] relative select-text">
+      <div 
+        className="h-full flex flex-col relative select-text"
+        style={{
+          background: 'var(--bg-primary)',
+          borderRight: '1px solid var(--border)',
+        }}
+      >
         <div className="flex-1 flex flex-col items-center justify-center p-8 text-center select-none animate-fade-in font-mono">
           <div className="max-w-md space-y-4">
-            <div className="mx-auto w-16 h-16 rounded-2xl bg-[#00d4ff]/5 border border-[#00d4ff]/15 flex items-center justify-center text-[#00d4ff] text-2xl font-bold animate-pulse">
+            <div 
+              style={{
+                margin: '0 auto',
+                width: '64px',
+                height: '64px',
+                borderRadius: 'var(--radius)',
+                background: 'var(--accent-glow)',
+                border: '1px solid var(--accent-border)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: 'var(--accent)',
+                fontSize: '24px',
+                fontWeight: 'bold',
+              }}
+              className="animate-pulse"
+            >
               PD
             </div>
             <div className="space-y-2">
-              <h3 className="text-sm font-bold text-slate-200">PolyDict Intelligence Standby</h3>
-              <p className="text-xs text-slate-500 leading-relaxed font-sans">
+              <h3 style={{ fontSize: '14px', fontWeight: 'bold', color: 'var(--text-primary)', margin: '16px 0 8px 0' }}>PolyDict Intelligence Standby</h3>
+              <p style={{ fontSize: '12px', color: 'var(--text-secondary)', lineHeight: '1.6', fontFamily: 'var(--font-sans)', margin: 0 }}>
                 Select any active Polymarket prediction contract from the left sidebar to initialize real-time AI analyst resolution.
               </p>
             </div>
           </div>
         </div>
-        <div className="p-4 border-t border-[#1e2a38] bg-[#0d1219]/60 shrink-0 text-slate-500 text-[10px] leading-relaxed font-sans text-center select-none">
+        <div 
+          style={{
+            padding: '12px 20px',
+            borderTop: '1px solid var(--border)',
+            background: 'rgba(0,0,0,0.2)',
+            color: 'var(--text-muted)',
+            fontSize: '10px',
+            fontFamily: 'var(--font-sans)',
+            textAlign: 'center',
+            lineHeight: '1.6',
+            userSelect: 'none',
+          }}
+        >
           NFA — This is not financial advice. Prediction markets carry significant risk. <br />
           Always do your own research. DYOR as always.
         </div>
@@ -362,27 +450,73 @@ export default function PredictionCard({
   };
 
   return (
-    <div className="h-full flex flex-col bg-[#080c10] border-r border-[#1e2a38] relative select-text">
+    <div 
+      className="h-full flex flex-col relative select-text"
+      style={{
+        background: 'var(--bg-primary)',
+        borderRight: '1px solid var(--border)',
+      }}
+    >
       {/* Scanning loading overlay */}
       {loading && (
-        <div className="absolute inset-0 bg-[#080c10]/95 backdrop-blur-md z-50 flex flex-col items-center justify-center p-8 space-y-6 select-none font-mono">
+        <div 
+          className="absolute inset-0 z-50 flex flex-col items-center justify-center p-8 space-y-6 select-none font-mono"
+          style={{
+            background: 'rgba(11, 15, 20, 0.96)',
+            backdropFilter: 'blur(6px)',
+          }}
+        >
           <div className="relative flex items-center justify-center">
-            <div className={`w-16 h-16 border-2 rounded-full animate-spin ${
-              loadingPhase === 'grok' 
-                ? 'border-t-[#ffab40] border-r-transparent border-b-transparent border-l-transparent shadow-[0_0_15px_rgba(255,171,64,0.3)]' 
-                : 'border-t-[#00d4ff] border-r-transparent border-b-transparent border-l-transparent shadow-[0_0_15px_rgba(0,212,255,0.3)]'
-            }`} />
-            <div className="absolute text-[10px] font-bold text-slate-400">
+            <div 
+              style={{
+                width: '64px',
+                height: '64px',
+                borderRadius: '50%',
+                border: '2px solid transparent',
+                borderTopColor: loadingPhase === 'grok' ? 'var(--amber)' : 'var(--accent)',
+                animation: 'spin 1s linear infinite',
+                boxShadow: loadingPhase === 'grok' 
+                  ? '0 0 15px rgba(255, 183, 77, 0.2)' 
+                  : '0 0 15px rgba(0, 209, 255, 0.2)',
+              }}
+            />
+            <div 
+              style={{
+                position: 'absolute',
+                fontSize: '10px',
+                fontWeight: 'bold',
+                color: 'var(--text-secondary)',
+              }}
+            >
               {loadingPhase === 'grok' ? 'X-AI' : 'CLAUDE'}
             </div>
           </div>
-          <div className="text-xs text-slate-300 font-medium tracking-wide space-y-3 text-center max-w-xs">
-            <div className={`font-bold animate-pulse text-sm ${
-              loadingPhase === 'grok' ? 'text-[#ffab40]' : 'text-[#00d4ff]'
-            }`}>
+          <div className="text-center max-w-xs space-y-3">
+            <div 
+              style={{
+                fontSize: '12px',
+                fontWeight: 'bold',
+                color: loadingPhase === 'grok' ? 'var(--amber)' : 'var(--accent)',
+                textTransform: 'uppercase',
+                letterSpacing: '0.1em',
+              }}
+              className="animate-pulse"
+            >
               {loadingPhase === 'grok' ? 'PHASE 1: SOCIAL SIGNAL SCRAPE' : 'PHASE 2: DEEP FORECAST ANALYSIS'}
             </div>
-            <p className="text-slate-400 text-[11px] leading-relaxed border border-[#1e2a38] bg-[#0d1219] p-3 rounded-lg">
+            <p 
+              style={{
+                fontSize: '11px',
+                color: 'var(--text-secondary)',
+                lineHeight: '1.6',
+                border: '1px solid var(--border)',
+                background: 'var(--bg-secondary)',
+                padding: '12px',
+                borderRadius: 'var(--radius-sm)',
+                fontFamily: 'var(--font-sans)',
+                margin: 0,
+              }}
+            >
               {loadingPhase === 'grok' 
                 ? 'Fetching X/Twitter sentiment signals via Grok 4.1 Fast with live web & social scraping enabled...'
                 : 'Scraped signals injected. Executing Claude 3.5 Sonnet reasoning core with mathematical validation constraints...'
@@ -395,106 +529,285 @@ export default function PredictionCard({
       {/* Main card viewport - scrollable */}
       <div className="flex-1 overflow-y-auto p-5 space-y-6 no-scrollbar">
         {/* Header Metadata */}
-        <div className="space-y-3">
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="px-2 py-0.5 rounded border border-[#00d4ff]/20 bg-[#00d4ff]/5 text-[10px] font-bold text-[#00d4ff] uppercase tracking-wider font-mono">
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', alignItems: 'center' }}>
+            <span 
+              style={{
+                padding: '2px 8px',
+                borderRadius: '4px',
+                border: '1px solid var(--accent-border)',
+                background: 'var(--accent-glow)',
+                fontSize: '10px',
+                fontFamily: 'var(--font-mono)',
+                fontWeight: 'bold',
+                color: 'var(--accent)',
+                textTransform: 'uppercase',
+                letterSpacing: '0.05em',
+              }}
+            >
               {market.category}
             </span>
-            <span className={`px-2 py-0.5 rounded border text-[10px] font-bold uppercase tracking-wider font-mono ${getCountdownStyles(countdown.severity)}`}>
+            <span 
+              style={{
+                padding: '2px 8px',
+                borderRadius: '4px',
+                border: '1px solid var(--border)',
+                fontSize: '10px',
+                fontFamily: 'var(--font-mono)',
+                fontWeight: 'bold',
+                textTransform: 'uppercase',
+                background: getCountdownStyles(countdown.severity).includes('bg-[#ff5252]/5') ? 'var(--red-glow)' : getCountdownStyles(countdown.severity).includes('bg-[#ffab40]/5') ? 'var(--amber-glow)' : 'rgba(255,255,255,0.04)',
+                borderColor: getCountdownStyles(countdown.severity).includes('bg-[#ff5252]/5') ? 'rgba(255, 82, 82, 0.2)' : getCountdownStyles(countdown.severity).includes('bg-[#ffab40]/5') ? 'rgba(255, 183, 77, 0.2)' : 'var(--border)',
+                color: getCountdownStyles(countdown.severity).includes('text-[#ff5252]') ? 'var(--red)' : getCountdownStyles(countdown.severity).includes('text-[#ffab40]') ? 'var(--amber)' : 'var(--text-secondary)',
+              }}
+            >
               {countdown.label}
             </span>
           </div>
 
-          <h2 className="text-lg font-bold text-white leading-relaxed select-text font-sans">
+          <h2 
+            style={{
+              fontSize: '18px',
+              fontWeight: 'bold',
+              color: '#FFFFFF',
+              lineHeight: '1.4',
+              margin: '0',
+              fontFamily: 'var(--font-sans)',
+            }}
+          >
             {market.question}
           </h2>
 
-          <div className="flex justify-between items-center text-xs font-semibold text-slate-500 border-b border-[#1e2a38] pb-3 font-mono">
-            <span>VOLUME: <strong className="text-slate-300">${market.volume.toLocaleString()}</strong></span>
-            <span>LIQUIDITY: <strong className="text-slate-300">${market.liquidity.toLocaleString()}</strong></span>
+          <div 
+            style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              fontSize: '11px',
+              fontFamily: 'var(--font-mono)',
+              color: 'var(--text-muted)',
+              borderBottom: '1px solid var(--border)',
+              paddingBottom: '12px',
+            }}
+          >
+            <span>VOLUME: <strong style={{ color: 'var(--text-secondary)', fontWeight: 600 }}>${market.volume.toLocaleString()}</strong></span>
+            <span>LIQUIDITY: <strong style={{ color: 'var(--text-secondary)', fontWeight: 600 }}>${market.liquidity.toLocaleString()}</strong></span>
           </div>
         </div>
 
         {/* Prediction Results block */}
         {error ? (
           error.includes('API_KEY') || error.includes('credentials') || error.includes('API key') ? (
-            <div className="p-5 rounded-xl border border-[#ff5252]/30 bg-[#ff5252]/[0.02] space-y-4 font-mono select-text animate-fade-in">
-              <div className="flex items-center gap-2 text-xs font-bold text-[#ff5252] tracking-wider uppercase border-b border-[#ff5252]/20 pb-2">
+            <div 
+              style={{
+                padding: '20px',
+                borderRadius: 'var(--radius)',
+                border: '1px solid rgba(255, 82, 82, 0.2)',
+                background: 'rgba(255, 82, 82, 0.02)',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '16px',
+                fontFamily: 'var(--font-mono)',
+              }}
+              className="animate-fade-in"
+            >
+              <div 
+                style={{
+                  fontSize: '12px',
+                  fontWeight: 'bold',
+                  color: 'var(--red)',
+                  letterSpacing: '0.1em',
+                  textTransform: 'uppercase',
+                  borderBottom: '1px solid rgba(255, 82, 82, 0.1)',
+                  paddingBottom: '8px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                }}
+              >
                 <span className="animate-pulse">⚠</span>
                 <span>API Configuration Required</span>
               </div>
               
-              <p className="text-[11px] text-slate-400 font-sans leading-relaxed">
-                PolyDict runs in a strict <strong className="text-[#00d4ff]">live-only telemetry mode</strong>. To execute real-time social sentiment scraping via Grok and dual-model analyst reasoning via Claude, you must define your API keys in your local environment.
+              <p style={{ fontSize: '11px', color: 'var(--text-secondary)', fontFamily: 'var(--font-sans)', lineHeight: '1.6', margin: 0 }}>
+                PolyDict runs in a strict <strong style={{ color: 'var(--accent)' }}>live-only telemetry mode</strong>. To execute real-time social sentiment scraping via Grok and dual-model analyst reasoning via Claude, you must define your API keys in your local environment.
               </p>
 
-              <div className="space-y-3 text-[11px] bg-[#0d1219] p-3.5 rounded border border-[#1e2a38] text-slate-300">
-                <div className="font-bold text-[#00d4ff] uppercase border-b border-[#1e2a38]/40 pb-1.5 mb-2 flex justify-between items-center">
+              <div 
+                style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '12px',
+                  background: 'var(--bg-secondary)',
+                  padding: '14px',
+                  borderRadius: 'var(--radius-sm)',
+                  border: '1px solid var(--border)',
+                  color: 'var(--text-secondary)',
+                  fontSize: '11px',
+                }}
+              >
+                <div 
+                  style={{
+                    fontWeight: 'bold',
+                    color: 'var(--accent)',
+                    textTransform: 'uppercase',
+                    borderBottom: '1px solid var(--border)',
+                    paddingBottom: '6px',
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                  }}
+                >
                   <span>Workspace Setup Steps</span>
-                  <span className="text-[9px] bg-[#00d4ff]/10 text-[#00d4ff] px-1.5 py-0.5 rounded">.env.local</span>
+                  <span style={{ fontSize: '9px', background: 'var(--accent-glow)', color: 'var(--accent)', padding: '2px 6px', borderRadius: '4px' }}>.env.local</span>
                 </div>
-                <div className="space-y-2">
-                  <div className="flex gap-2">
-                    <span className="text-[#00d4ff] font-bold">1.</span>
-                    <p className="font-sans">
-                      Open <strong className="text-slate-100 font-mono text-[10px] bg-[#080c10] px-1 py-0.5 border border-[#1e2a38] rounded">.env.local</strong> in your project root folder.
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  <div style={{ display: 'flex', gap: '8px' }}>
+                    <span style={{ color: 'var(--accent)', fontWeight: 'bold' }}>1.</span>
+                    <p style={{ fontFamily: 'var(--font-sans)', margin: 0 }}>
+                      Open <strong style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-mono)', fontSize: '10px', background: 'var(--bg-primary)', padding: '2px 4px', border: '1px solid var(--border)', borderRadius: '4px' }}>.env.local</strong> in your project root folder.
                     </p>
                   </div>
-                  <div className="flex gap-2">
-                    <span className="text-[#00d4ff] font-bold">2.</span>
-                    <p className="font-sans">
+                  <div style={{ display: 'flex', gap: '8px' }}>
+                    <span style={{ color: 'var(--accent)', fontWeight: 'bold' }}>2.</span>
+                    <p style={{ fontFamily: 'var(--font-sans)', margin: 0 }}>
                       Define the following variables with your credentials (no quotes or spaces):
                     </p>
                   </div>
-                  <pre className="text-[10px] bg-[#080c10] p-2 rounded border border-[#1e2a38]/60 text-[#00e676] overflow-x-auto select-all leading-normal font-bold">
+                  <pre 
+                    style={{
+                      fontSize: '10px',
+                      background: 'var(--bg-primary)',
+                      padding: '8px',
+                      borderRadius: '4px',
+                      border: '1px solid var(--border)',
+                      color: 'var(--green)',
+                      overflowX: 'auto',
+                      userSelect: 'all',
+                      lineHeight: '1.5',
+                      fontFamily: 'var(--font-mono)',
+                      fontWeight: 'bold',
+                      margin: 0,
+                    }}
+                  >
 {`ANTHROPIC_API_KEY=your-anthropic-key-here
 GROQ_API_KEY=your-groq-key-here
 XAI_API_KEY=your-xai-key-here`}
                   </pre>
-                  <div className="flex gap-2">
-                    <span className="text-[#00d4ff] font-bold">3.</span>
-                    <p className="font-sans">
+                  <div style={{ display: 'flex', gap: '8px' }}>
+                    <span style={{ color: 'var(--accent)', fontWeight: 'bold' }}>3.</span>
+                    <p style={{ fontFamily: 'var(--font-sans)', margin: 0 }}>
                       Save the file and click the retry button below to re-initiate telemetry.
                     </p>
                   </div>
                 </div>
               </div>
 
-              <div className="flex gap-2.5 pt-1">
+              <div style={{ display: 'flex', paddingTop: '4px' }}>
                 <button
                   onClick={() => runAnalysis(market, true)}
-                  className="px-4 py-2.5 bg-[#ff5252]/10 border border-[#ff5252] hover:bg-[#ff5252]/20 hover:border-[#ff5252] text-[#ff5252] font-bold text-xs rounded transition-all cursor-pointer font-mono shadow-[0_0_10px_rgba(255,82,82,0.1)] active:scale-[0.98]"
+                  style={{
+                    padding: '10px 16px',
+                    background: 'rgba(255, 82, 82, 0.1)',
+                    border: '1px solid var(--red)',
+                    color: 'var(--red)',
+                    fontWeight: 'bold',
+                    fontSize: '11px',
+                    fontFamily: 'var(--font-mono)',
+                    borderRadius: 'var(--radius-sm)',
+                    cursor: 'pointer',
+                    transition: 'all 0.15s',
+                    boxShadow: '0 0 10px rgba(255, 82, 82, 0.1)',
+                  }}
+                  onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255, 82, 82, 0.2)'}
+                  onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(255, 82, 82, 0.1)'}
                 >
                   RETRY Live Resolution
                 </button>
               </div>
             </div>
           ) : (
-            <div className="p-4 rounded border border-[#ff5252]/30 bg-[#ff5252]/5 text-xs text-[#ff5252] space-y-2 font-mono">
-              <div className="font-bold">SYSTEM ERROR: PIPELINE DEPLOYMENT FAILURE</div>
-              <div className="text-[11px] leading-relaxed font-sans">{error}</div>
+            <div 
+              style={{
+                padding: '16px',
+                borderRadius: 'var(--radius-sm)',
+                border: '1px solid rgba(255, 82, 82, 0.2)',
+                background: 'rgba(255, 82, 82, 0.05)',
+                fontSize: '12px',
+                color: 'var(--red)',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '8px',
+                fontFamily: 'var(--font-mono)',
+              }}
+            >
+              <div style={{ fontWeight: 'bold' }}>SYSTEM ERROR: PIPELINE DEPLOYMENT FAILURE</div>
+              <div style={{ fontSize: '11px', lineHeight: '1.6', fontFamily: 'var(--font-sans)' }}>{error}</div>
               <button
                 onClick={() => runAnalysis(market, true)}
-                className="mt-1 px-3 py-1 bg-[#ff5252]/10 border border-[#ff5252]/30 rounded text-[#ff5252] font-bold hover:bg-[#ff5252]/20 cursor-pointer transition-all"
+                style={{
+                  marginTop: '4px',
+                  padding: '6px 12px',
+                  background: 'rgba(255, 82, 82, 0.1)',
+                  border: '1px solid rgba(255, 82, 82, 0.3)',
+                  borderRadius: 'var(--radius-sm)',
+                  color: 'var(--red)',
+                  fontWeight: 'bold',
+                  cursor: 'pointer',
+                  transition: 'all 0.15s',
+                }}
+                onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255, 82, 82, 0.2)'}
+                onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(255, 82, 82, 0.1)'}
               >
                 RETRY RESOLUTION
               </button>
             </div>
           )
         ) : analysis ? (
-          <div className="space-y-6 animate-fade-in">
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }} className="animate-fade-in">
             {/* Price Drift Warning Banner */}
             {priceDrift > 0.03 && (
-              <div className="p-3.5 rounded border border-l-4 border-[#ffab40]/40 border-l-[#ffab40] bg-[#ffab40]/[0.03] text-xs font-mono text-[#ffab40] flex items-center justify-between gap-3 animate-fade-in shrink-0">
-                <div className="flex items-center gap-2">
+              <div 
+                style={{
+                  padding: '10px 14px',
+                  background: 'var(--amber-glow)',
+                  border: '1px solid rgba(255, 183, 77, 0.15)',
+                  borderLeft: '4px solid var(--amber)',
+                  borderRadius: 'var(--radius-sm)',
+                  fontFamily: 'var(--font-mono)',
+                  fontSize: '11px',
+                  color: 'var(--amber)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  gap: '12px',
+                }}
+                className="animate-fade-in shrink-0"
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                   <span>⚠</span>
-                  <span className="font-semibold text-slate-200">
+                  <span style={{ color: 'var(--text-primary)' }}>
                     Odds moved {(priceDrift * 100).toFixed(1)} percentage point since scan
                   </span>
                 </div>
                 <button 
                   onClick={reAnalyze}
-                  className="px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider border border-[#ffab40]/40 bg-[#ffab40]/10 rounded hover:bg-[#ffab40]/20 text-[#ffab40] cursor-pointer transition-all active:scale-[0.97] shrink-0"
+                  style={{
+                    padding: '4px 8px',
+                    fontSize: '9px',
+                    fontFamily: 'var(--font-mono)',
+                    fontWeight: 'bold',
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.05em',
+                    border: '1px solid rgba(255, 183, 77, 0.3)',
+                    background: 'rgba(255, 183, 77, 0.1)',
+                    color: 'var(--amber)',
+                    borderRadius: '4px',
+                    cursor: 'pointer',
+                    transition: 'all 0.15s',
+                  }}
+                  onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255, 183, 77, 0.2)'}
+                  onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(255, 183, 77, 0.1)'}
                 >
                   Re-analyze
                 </button>
@@ -502,88 +815,340 @@ XAI_API_KEY=your-xai-key-here`}
             )}
 
             {/* STUNNING PROMINENT VERDICT BANNER */}
-            <div className={`p-5 rounded-xl border font-mono transition-all duration-300 ${
-              analysis.verdict === 'YES' ? 'bg-[#00e676]/10 animate-pulse-yes' :
-              analysis.verdict === 'NO' ? 'bg-[#ff5252]/10 animate-pulse-no' :
-              'bg-[#ffab40]/10 animate-pulse-skip'
-            }`}>
-              {/* Verdict Label */}
-              <div className="flex items-center gap-2 mb-3">
-                <span className={`h-3 w-3 rounded-full animate-ping ${
-                  analysis.verdict === 'YES' ? 'bg-[#00e676]' :
-                  analysis.verdict === 'NO' ? 'bg-[#ff5252]' : 'bg-[#ffab40]'
-                }`} />
-                <h3 className={`text-3xl font-black font-mono tracking-wider ${
-                  analysis.verdict === 'YES' ? 'text-[#00e676]' :
-                  analysis.verdict === 'NO' ? 'text-[#ff5252]' : 'text-[#ffab40]'
-                }`}>
+            <div 
+              style={{
+                background: 'var(--bg-card)',
+                border: '1px solid var(--border)',
+                borderRadius: 'var(--radius)',
+                overflow: 'hidden',
+              }}
+            >
+              {/* Verdict header banner */}
+              <div 
+                style={{
+                  padding: '16px 20px',
+                  background: analysis.verdict === 'YES' ? 'var(--green-glow)' :
+                             analysis.verdict === 'NO' ? 'var(--red-glow)' : 'var(--amber-glow)',
+                  borderBottom: analysis.verdict === 'YES' ? '1px solid rgba(0, 230, 118, 0.2)' :
+                               analysis.verdict === 'NO' ? '1px solid rgba(255, 82, 82, 0.2)' : '1px solid rgba(255, 183, 77, 0.2)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '12px',
+                }}
+                className={
+                  analysis.verdict === 'YES' ? 'animate-pulse-yes' :
+                  analysis.verdict === 'NO' ? 'animate-pulse-no' : 'animate-pulse-skip'
+                }
+              >
+                <span 
+                  style={{
+                    width: '8px',
+                    height: '8px',
+                    borderRadius: '50%',
+                    background: analysis.verdict === 'YES' ? 'var(--green)' :
+                               analysis.verdict === 'NO' ? 'var(--red)' : 'var(--amber)',
+                    boxShadow: `0 0 8px ${
+                      analysis.verdict === 'YES' ? 'var(--green)' :
+                      analysis.verdict === 'NO' ? 'var(--red)' : 'var(--amber)'
+                    }`,
+                    display: 'inline-block',
+                  }} 
+                />
+                <h3 
+                  style={{
+                    fontSize: '28px',
+                    fontWeight: 600,
+                    fontFamily: 'var(--font-mono)',
+                    letterSpacing: '0.02em',
+                    color: analysis.verdict === 'YES' ? 'var(--green)' :
+                           analysis.verdict === 'NO' ? 'var(--red)' : 'var(--amber)',
+                    margin: 0,
+                    lineHeight: 1,
+                  }}
+                >
                   {analysis.verdict}
                 </h3>
               </div>
 
-              {/* Dynamic Explanation Sentence */}
-              <p className="text-sm text-slate-300 font-sans leading-relaxed mb-4">
-                "{
-                  analysis.verdict === 'YES'
-                    ? `The market prices this at ${yesOdds}%. PolyDict estimates ${confidencePct}% probability — a ${Math.abs(edgePct)} percentage point edge worth taking.`
-                    : analysis.verdict === 'NO'
-                    ? `The market is overpricing this at ${yesOdds}%. PolyDict puts true odds at ${confidencePct}% — lean NO.`
-                    : `Edge is only ${Math.abs(edgePct)} percentage point — too thin to act on. Monitor and revisit.`
-                }"
-              </p>
-
-              {/* WHY Label and Summary */}
-              <div className="space-y-1 mb-4 pt-3 border-t border-[#1e2a38]/30">
-                <div className="text-[10px] font-mono uppercase tracking-widest text-slate-500">
-                  WHY {analysis.verdict}
-                </div>
-                <p className="text-xs text-slate-300 font-sans leading-relaxed">
-                  {analysis.summary}
+              {/* Banner content */}
+              <div style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                {/* Dynamic Explanation Sentence */}
+                <p 
+                  style={{
+                    fontFamily: 'var(--font-sans)',
+                    fontSize: '13px',
+                    color: 'var(--text-secondary)',
+                    lineHeight: '1.6',
+                    margin: 0,
+                  }}
+                >
+                  "{
+                    analysis.verdict === 'YES'
+                      ? `The market prices this at ${yesOdds}%. PolyDict estimates ${confidencePct}% probability — a ${Math.abs(edgePct)} percentage point edge worth taking.`
+                      : analysis.verdict === 'NO'
+                      ? `The market is overpricing this at ${yesOdds}%. PolyDict puts true odds at ${confidencePct}% — lean NO.`
+                      : `Edge is only ${Math.abs(edgePct)} percentage point — too thin to act on. Monitor and revisit.`
+                  }"
                 </p>
-              </div>
 
-              {/* Side-by-side Progress Bars */}
-              <div className="flex gap-4 items-center pt-3 border-t border-[#1e2a38]/30 text-xs font-mono">
-                <div className="flex-1 space-y-1">
-                  <div className="flex justify-between text-slate-400 text-[10px] font-bold">
-                    <span>CONFIDENCE</span>
-                    <span className="text-white">{confidencePct}%</span>
+                {/* WHY Label and Summary */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', borderTop: '1px solid var(--border)', paddingTop: '16px' }}>
+                  <div 
+                    style={{
+                      fontFamily: 'var(--font-mono)',
+                      fontSize: '9px',
+                      fontWeight: '600',
+                      letterSpacing: '0.14em',
+                      color: 'var(--text-muted)',
+                      textTransform: 'uppercase',
+                    }}
+                  >
+                    WHY {analysis.verdict}
                   </div>
-                  <div className="h-1.5 w-full bg-[#1e2a38]/50 rounded-full overflow-hidden">
-                    <div className={`h-full ${
-                      analysis.verdict === 'YES' ? 'bg-[#00e676]' :
-                      analysis.verdict === 'NO' ? 'bg-[#ff5252]' : 'bg-[#ffab40]'
-                    }`} style={{ width: `${confidencePct}%` }} />
-                  </div>
+                  <p style={{ fontSize: '12px', color: 'var(--text-secondary)', lineHeight: '1.5', fontFamily: 'var(--font-sans)', margin: 0 }}>
+                    {analysis.summary}
+                  </p>
                 </div>
 
-                <div className="flex-1 space-y-1">
-                  <div className="flex justify-between text-slate-400 text-[10px] font-bold">
-                    <span>MARKET ODDS</span>
-                    <span className="text-white">{yesOdds}%</span>
+                {/* Side-by-side Progress Bars */}
+                <div style={{ display: 'flex', gap: '16px', alignItems: 'center', borderTop: '1px solid var(--border)', paddingTop: '16px' }}>
+                  <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontFamily: 'var(--font-mono)', fontSize: '10px' }}>
+                      <span style={{ color: 'var(--text-secondary)' }}>CONFIDENCE</span>
+                      <span style={{ color: 'var(--text-primary)', fontWeight: 600 }}>{confidencePct}%</span>
+                    </div>
+                    <div 
+                      style={{
+                        background: 'rgba(255,255,255,0.06)',
+                        height: '3px',
+                        borderRadius: '2px',
+                        overflow: 'hidden',
+                        width: '100%',
+                      }}
+                    >
+                      <div 
+                        style={{
+                          height: '100%',
+                          background: analysis.verdict === 'YES' ? 'var(--green)' :
+                                     analysis.verdict === 'NO' ? 'var(--red)' : 'var(--amber)',
+                          width: `${confidencePct}%`,
+                          borderRadius: '2px',
+                          transition: 'width 0.6s cubic-bezier(0.4, 0, 0.2, 1)',
+                        }} 
+                      />
+                    </div>
                   </div>
-                  <div className="h-1.5 w-full bg-[#1e2a38]/50 rounded-full overflow-hidden">
-                    <div className="h-full bg-[#00d4ff]" style={{ width: `${yesOdds}%` }} />
+
+                  <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontFamily: 'var(--font-mono)', fontSize: '10px' }}>
+                      <span style={{ color: 'var(--text-secondary)' }}>MARKET ODDS</span>
+                      <span style={{ color: 'var(--text-primary)', fontWeight: 600 }}>{yesOdds}%</span>
+                    </div>
+                    <div 
+                      style={{
+                        background: 'rgba(255,255,255,0.06)',
+                        height: '3px',
+                        borderRadius: '2px',
+                        overflow: 'hidden',
+                        width: '100%',
+                      }}
+                    >
+                      <div 
+                        style={{
+                          height: '100%',
+                          background: 'var(--accent)',
+                          width: `${yesOdds}%`,
+                          borderRadius: '2px',
+                          transition: 'width 0.6s cubic-bezier(0.4, 0, 0.2, 1)',
+                        }} 
+                      />
+                    </div>
                   </div>
                 </div>
               </div>
             </div>
 
+            {marketSentiment?.polymarketSentiment && (
+              <div style={{
+                padding: '16px 20px',
+                borderBottom: '1px solid var(--border)',
+                background: 'var(--bg-card)',
+                borderRadius: 'var(--radius)',
+                border: '1px solid var(--border)',
+              }}>
+                <p style={{
+                  fontFamily: 'var(--font-mono)',
+                  fontSize: '9px',
+                  fontWeight: '600',
+                  letterSpacing: '0.14em',
+                  color: 'var(--text-muted)',
+                  textTransform: 'uppercase',
+                  marginBottom: '12px',
+                  marginRight: 0,
+                  marginLeft: 0,
+                  marginTop: 0,
+                }}>
+                  Polymarket Crowd vs PolyDict Agent
+                </p>
+
+                {/* Crowd sentiment bar */}
+                <div style={{ marginBottom: '10px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
+                    <span style={{ fontFamily: 'var(--font-mono)', fontSize: '10px', color: 'var(--text-muted)' }}>
+                      CROWD SENTIMENT
+                    </span>
+                    <span style={{ fontFamily: 'var(--font-mono)', fontSize: '10px', color: 'var(--text-secondary)' }}>
+                      {((market.sentimentRatio ?? 0.5) * 100).toFixed(0)}% BULL
+                    </span>
+                  </div>
+                  <div style={{ height: '3px', background: 'rgba(255,255,255,0.06)', borderRadius: '2px', overflow: 'hidden' }}>
+                    <div style={{
+                      height: '100%',
+                      width: `${(market.sentimentRatio ?? 0.5) * 100}%`,
+                      background: (market.sentimentRatio ?? 0.5) > 0.5 ? 'var(--green)' : 'var(--red)',
+                      transition: 'width 0.6s cubic-bezier(0.4,0,0.2,1)',
+                      boxShadow: (market.sentimentRatio ?? 0.5) > 0.5 ? '0 0 6px rgba(0,230,118,0.4)' : '0 0 6px rgba(255,82,82,0.4)',
+                    }} />
+                  </div>
+                </div>
+
+                {/* Agent confidence bar */}
+                <div style={{ marginBottom: '10px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
+                    <span style={{ fontFamily: 'var(--font-mono)', fontSize: '10px', color: 'var(--text-muted)' }}>
+                      AGENT CONFIDENCE
+                    </span>
+                    <span style={{ fontFamily: 'var(--font-mono)', fontSize: '10px', color: 'var(--accent)' }}>
+                      {((analysis?.confidence ?? 0.5) * 100).toFixed(0)}% {analysis?.verdict}
+                    </span>
+                  </div>
+                  <div style={{ height: '3px', background: 'rgba(255,255,255,0.06)', borderRadius: '2px', overflow: 'hidden' }}>
+                    <div style={{
+                      height: '100%',
+                      width: `${(analysis?.confidence ?? 0.5) * 100}%`,
+                      background: 'var(--accent)',
+                      transition: 'width 0.6s cubic-bezier(0.4,0,0.2,1)',
+                      boxShadow: '0 0 6px rgba(0,209,255,0.4)',
+                    }} />
+                  </div>
+                </div>
+
+                {/* Price trend from Polymarket history */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '8px' }}>
+                  <span style={{ fontFamily: 'var(--font-mono)', fontSize: '9px', color: 'var(--text-muted)', letterSpacing: '0.1em' }}>
+                    24H TREND
+                  </span>
+                  <span style={{
+                    fontFamily: 'var(--font-mono)',
+                    fontSize: '11px',
+                    fontWeight: '600',
+                    color: marketSentiment?.trend === 'rising'
+                      ? 'var(--green)'
+                      : marketSentiment?.trend === 'falling'
+                      ? 'var(--red)'
+                      : 'var(--text-muted)',
+                  }}>
+                    {marketSentiment?.trend === 'rising' ? '↑ Rising'
+                      : marketSentiment?.trend === 'falling' ? '↓ Falling'
+                      : '→ Flat'}
+                  </span>
+                  {marketSentiment?.polymarketSentiment?.change24h !== 0 && marketSentiment?.polymarketSentiment?.change24h !== undefined && (
+                    <span style={{
+                      fontFamily: 'var(--font-mono)',
+                      fontSize: '10px',
+                      color: marketSentiment.polymarketSentiment.change24h > 0 ? 'var(--green)' : 'var(--red)',
+                    }}>
+                      {marketSentiment.polymarketSentiment.change24h > 0 ? '+' : ''}
+                      {(marketSentiment.polymarketSentiment.change24h * 100).toFixed(1)}pp
+                    </span>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {(() => {
+              const healthScore = getMarketHealthScore(market, analysis);
+              const barColor = healthScore >= 70 ? "#00e676" : healthScore >= 40 ? "#ffab40" : "#ff5252";
+              const label = healthScore >= 70
+                ? "Strong signal — high confidence setup"
+                : healthScore >= 40
+                ? "Moderate signal — size conservatively"
+                : "Weak signal — consider skipping";
+
+              return (
+                <div className="px-5 py-3 border-b border-[#1e2a38]">
+                  <div className="flex items-center justify-between mb-1.5">
+                    <span className="text-[10px] font-mono font-bold uppercase tracking-widest text-slate-500">
+                      Market Health
+                    </span>
+                    <span className="text-[11px] font-mono font-bold" style={{ color: barColor }}>
+                      {healthScore}/100
+                    </span>
+                  </div>
+                  <div className="w-full h-1.5 bg-[#1e2a38] rounded-full overflow-hidden mb-1.5">
+                    <div
+                      className="h-full rounded-full transition-all duration-700"
+                      style={{ width: `${healthScore}%`, background: barColor }}
+                    />
+                  </div>
+                  <p className="text-[10px] text-slate-500 font-mono">{label}</p>
+                </div>
+              );
+            })()}
+
             {/* SECTION 3: Why (reasoning condensed) */}
-            <div className="space-y-1.5 font-mono">
-              <div className="text-[9px] font-bold text-slate-500 uppercase tracking-wider">[Analyst Reasoning]</div>
-              <p className="text-xs text-slate-300 leading-relaxed font-sans bg-[#0d1219] p-4 rounded border border-[#1e2a38] font-sans">
+            <div style={{ borderTop: '1px solid var(--border)', paddingTop: '16px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              <div 
+                style={{
+                  fontFamily: 'var(--font-mono)',
+                  fontSize: '9px',
+                  fontWeight: '600',
+                  letterSpacing: '0.14em',
+                  color: 'var(--text-muted)',
+                  textTransform: 'uppercase',
+                }}
+              >
+                ◈ Analyst Reasoning
+              </div>
+              <p 
+                style={{
+                  fontFamily: 'var(--font-mono)',
+                  fontSize: '11px',
+                  color: 'var(--text-secondary)',
+                  lineHeight: '1.7',
+                  margin: 0,
+                  whiteSpace: 'pre-wrap',
+                }}
+              >
                 {getConciseReasoning(analysis.reasoning)}
               </p>
             </div>
 
             {/* SECTION 4: Want to know more? Chat link prompt */}
             {onAskAI && (
-              <div className="py-0.5 font-mono select-none">
+              <div style={{ display: 'flex', userSelect: 'none' }}>
                 <button
                   type="button"
                   onClick={onAskAI}
-                  className="w-full text-left text-xs font-bold text-[#00d4ff] hover:text-[#00e676] bg-transparent border-none cursor-pointer transition-all flex items-center gap-1 font-mono hover:underline"
+                  style={{
+                    width: '100%',
+                    textAlign: 'left',
+                    background: 'transparent',
+                    border: 'none',
+                    padding: 0,
+                    cursor: 'pointer',
+                    fontSize: '11px',
+                    fontWeight: 'bold',
+                    color: 'var(--accent)',
+                    fontFamily: 'var(--font-mono)',
+                    outline: 'none',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '4px',
+                    transition: 'color 0.15s',
+                  }}
+                  onMouseEnter={(e) => e.currentTarget.style.color = 'var(--green)'}
+                  onMouseLeave={(e) => e.currentTarget.style.color = 'var(--accent)'}
                 >
                   &gt; Ask the AI analyst for scenarios, position sizing, or deeper signals →
                 </button>
@@ -591,39 +1156,86 @@ XAI_API_KEY=your-xai-key-here`}
             )}
 
             {/* SECTION 5: Live Market Pulse Heatmap */}
-            <div className="p-4 rounded-xl bg-[#0d1219]/90 border border-[#1e2a38] backdrop-blur-md space-y-4 font-mono shadow-[0_0_15px_rgba(0,212,255,0.03)] animate-fade-in">
-              <div className="flex items-center justify-between border-b border-[#1e2a38] pb-2">
-                <span className="text-xs font-bold text-[#00d4ff] uppercase tracking-wider flex items-center gap-1.5">
+            <div 
+              style={{
+                background: 'var(--bg-card)',
+                border: '1px solid var(--border)',
+                borderRadius: 'var(--radius)',
+                padding: '16px 20px',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '16px',
+              }}
+              className="animate-fade-in"
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border)', paddingBottom: '8px' }}>
+                <span 
+                  style={{
+                    fontSize: '11px',
+                    fontWeight: 'bold',
+                    color: 'var(--accent)',
+                    fontFamily: 'var(--font-mono)',
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.05em',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                  }}
+                >
                   <span className="w-1.5 h-1.5 rounded-full bg-[#00d4ff] animate-ping" />
                   Live Market Pulse
                 </span>
-                <span className="text-[9px] text-slate-500 font-semibold uppercase">TELEMETRY</span>
+                <span style={{ fontSize: '9px', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', fontWeight: 'bold' }}>TELEMETRY</span>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '12px' }}>
                 {/* Momentum Dial */}
-                <div className="p-3 rounded-lg bg-[#080c10] border border-[#1e2a38]/80 flex flex-col justify-between space-y-2">
-                  <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Price Momentum</span>
-                  <div className="flex items-center gap-2">
-                    <span className={`text-lg font-bold ${pulseArrowClass}`}>{pulseArrow}</span>
-                    <span className={`text-xs font-bold ${pulseArrowClass}`}>
+                <div 
+                  style={{
+                    padding: '12px',
+                    borderRadius: 'var(--radius-sm)',
+                    background: 'var(--bg-primary)',
+                    border: '1px solid var(--border)',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    justifyContent: 'space-between',
+                    gap: '8px',
+                  }}
+                >
+                  <span style={{ fontSize: '9px', fontFamily: 'var(--font-mono)', color: 'var(--text-muted)', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Price Momentum</span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <span style={{ fontSize: '18px', fontWeight: 'bold', color: pulseArrowClass.includes('00e676') ? 'var(--green)' : pulseArrowClass.includes('ff5252') ? 'var(--red)' : 'var(--text-muted)' }}>{pulseArrow}</span>
+                    <span style={{ fontSize: '11px', fontWeight: 'bold', fontFamily: 'var(--font-mono)', color: pulseArrowClass.includes('00e676') ? 'var(--green)' : pulseArrowClass.includes('ff5252') ? 'var(--red)' : 'var(--text-muted)' }}>
                       {pulseArrow === '↑' ? 'RISING DRIFT' : pulseArrow === '↓' ? 'DOWNWARD DRIFT' : 'STABLE'}
                     </span>
                   </div>
-                  <span className="text-[9px] text-slate-400 font-sans">
-                    Drift: {(priceDrift * 100).toFixed(1)} percentage point from initial scan
+                  <span style={{ fontSize: '9px', color: 'var(--text-muted)', fontFamily: 'var(--font-sans)' }}>
+                    Drift: {(priceDrift * 100).toFixed(1)} pp from initial scan
                   </span>
                 </div>
 
                 {/* Volume Change Dial */}
-                <div className={`p-3 rounded-lg bg-[#080c10] border flex flex-col justify-between space-y-2 transition-all duration-300 ${volDriftClass}`}>
-                  <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Volume Pulse</span>
-                  <div className="flex items-center gap-1.5">
-                    <span className="text-xs font-bold text-slate-200">
+                <div 
+                  style={{
+                    padding: '12px',
+                    borderRadius: 'var(--radius-sm)',
+                    background: 'var(--bg-primary)',
+                    border: '1px solid var(--border)',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    justifyContent: 'space-between',
+                    gap: '8px',
+                    transition: 'all 0.3s',
+                  }}
+                  className={volDriftClass.includes('00e676') ? 'border-emerald-500/40 bg-emerald-500/5' : volDriftClass.includes('00d4ff') ? 'border-cyan-500/30 bg-cyan-500/5' : ''}
+                >
+                  <span style={{ fontSize: '9px', fontFamily: 'var(--font-mono)', color: 'var(--text-muted)', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Volume Pulse</span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <span style={{ fontSize: '11px', fontWeight: 'bold', fontFamily: 'var(--font-mono)', color: 'var(--text-primary)' }}>
                       ${(currentVol || 0).toLocaleString()}
                     </span>
                   </div>
-                  <span className="text-[9px] font-sans">
+                  <span style={{ fontSize: '9px', color: 'var(--text-muted)', fontFamily: 'var(--font-sans)' }}>
                     Active contract flow telemetry
                   </span>
                 </div>
@@ -631,54 +1243,101 @@ XAI_API_KEY=your-xai-key-here`}
             </div>
 
             {/* SECTION 6: Interactive Kelly Bet Sizer */}
-            <div className="p-4 rounded-xl bg-[#0d1219]/90 border border-[#1e2a38] backdrop-blur-md space-y-4 font-mono shadow-[0_0_15px_rgba(0,212,255,0.03)]">
-              <div className="flex items-center justify-between border-b border-[#1e2a38] pb-2">
-                <span className="text-xs font-bold text-[#00d4ff] uppercase tracking-wider flex items-center gap-1.5">
+            <div 
+              style={{
+                background: 'var(--bg-card)',
+                border: '1px solid var(--border)',
+                borderRadius: 'var(--radius)',
+                padding: '16px 20px',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '16px',
+              }}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border)', paddingBottom: '8px' }}>
+                <span 
+                  style={{
+                    fontSize: '11px',
+                    fontWeight: 'bold',
+                    color: 'var(--accent)',
+                    fontFamily: 'var(--font-mono)',
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.05em',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                  }}
+                >
                   <span className="w-1.5 h-1.5 rounded-full bg-[#00d4ff] animate-pulse" />
                   Kelly Sizer
                 </span>
-                <span className="text-[9px] text-[#00d4ff] font-bold border border-[#00d4ff]/20 bg-[#00d4ff]/5 px-1.5 py-0.5 rounded">
-                  Bet Calculator
+                <span style={{ fontSize: '9px', color: 'var(--accent)', border: '1px solid var(--accent-border)', background: 'var(--accent-glow)', padding: '2px 6px', borderRadius: '4px', fontFamily: 'var(--font-mono)', fontWeight: 'bold' }}>
+                  BET CALCULATOR
                 </span>
               </div>
 
               {/* Bankroll Betting field input */}
-              <div className="space-y-1.5">
-                <div className="flex justify-between items-center text-[10px] font-bold text-slate-400">
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '9px', fontFamily: 'var(--font-mono)', fontWeight: 'bold', color: 'var(--text-muted)', letterSpacing: '0.05em' }}>
                   <span>I WANT TO BET $</span>
-                  <span className="text-slate-500">USD</span>
+                  <span>USD</span>
                 </div>
-                <div className="relative">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs font-bold">$</span>
+                <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                  <span style={{ position: 'absolute', left: '12px', color: 'var(--text-secondary)', fontSize: '12px', fontWeight: 'bold', fontFamily: 'var(--font-mono)' }}>$</span>
                   <input 
                     type="number"
                     value={sizerBet}
                     onChange={(e) => setSizerBet(e.target.value)}
                     placeholder="Enter bet size..."
-                    className="w-full bg-[#080c10] border border-[#1e2a38] rounded p-2 pl-7 text-xs font-bold text-slate-200 focus:outline-none focus:border-[#00d4ff] transition-all"
+                    style={{
+                      width: '100%',
+                      background: 'var(--bg-primary)',
+                      border: '1px solid var(--border)',
+                      borderRadius: 'var(--radius-sm)',
+                      padding: '8px 12px 8px 24px',
+                      fontSize: '12px',
+                      fontWeight: 'bold',
+                      color: 'var(--text-primary)',
+                      fontFamily: 'var(--font-mono)',
+                      outline: 'none',
+                      transition: 'border-color 0.15s',
+                    }}
+                    onFocus={(e) => e.target.style.borderColor = 'var(--accent-border)'}
+                    onBlur={(e) => e.target.style.borderColor = 'var(--border)'}
                   />
                 </div>
               </div>
 
               {/* Kelly Betting outputs */}
-              <div className="p-3 rounded-lg bg-[#080c10] border border-[#1e2a38] space-y-2.5 font-mono">
+              <div 
+                style={{
+                  padding: '12px',
+                  borderRadius: 'var(--radius-sm)',
+                  background: 'var(--bg-primary)',
+                  border: '1px solid var(--border)',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '8px',
+                  fontFamily: 'var(--font-mono)',
+                }}
+              >
                 {!isEdgePositive ? (
-                  <div className="text-[11px] font-bold text-[#ffab40] text-center py-2 animate-pulse">
+                  <div style={{ fontSize: '11px', fontWeight: 'bold', color: 'var(--amber)', textAlign: 'center', padding: '8px 0' }} className="animate-pulse">
                     No edge detected — Kelly recommends $0
                   </div>
                 ) : (
-                  <div className="space-y-2">
-                    <div className="flex justify-between text-xs border-b border-[#1e2a38] pb-1.5">
-                      <span className="text-slate-500">Full Kelly Bet:</span>
-                      <span className="text-white font-bold">${fullKellyBet.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', borderBottom: '1px solid var(--border)', paddingBottom: '6px' }}>
+                      <span style={{ color: 'var(--text-muted)' }}>Full Kelly Bet:</span>
+                      <span style={{ color: 'var(--text-primary)', fontWeight: 600 }}>${fullKellyBet.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                     </div>
-                    <div className="flex justify-between text-xs border-b border-[#1e2a38] pb-1.5">
-                      <span className="text-[#00e676] font-semibold">Half Kelly (recommended):</span>
-                      <span className="text-[#00e676] font-bold">${halfKellyBet.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', borderBottom: '1px solid var(--border)', paddingBottom: '6px' }}>
+                      <span style={{ color: 'var(--green)', fontWeight: 500 }}>Half Kelly (recommended):</span>
+                      <span style={{ color: 'var(--green)', fontWeight: 600 }}>${halfKellyBet.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                     </div>
-                    <div className="flex justify-between text-xs">
-                      <span className="text-slate-500">Edge:</span>
-                      <span className="text-[#00d4ff] font-bold">{edgePct} percentage point</span>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px' }}>
+                      <span style={{ color: 'var(--text-muted)' }}>Edge:</span>
+                      <span style={{ color: 'var(--accent)', fontWeight: 600 }}>{edgePct} percentage point</span>
                     </div>
                   </div>
                 )}
@@ -686,50 +1345,101 @@ XAI_API_KEY=your-xai-key-here`}
             </div>
 
             {/* CHANGE 4: Live X Sentiment & News Tracker */}
-            <div className="p-4 rounded-xl bg-[#0d1219]/90 border border-[#1e2a38] backdrop-blur-md space-y-4 font-mono shadow-[0_0_15px_rgba(0,212,255,0.03)]">
-              <div className="flex items-center justify-between border-b border-[#1e2a38] pb-2">
-                <span className="text-xs font-bold text-[#ff5252] uppercase tracking-wider flex items-center gap-1.5">
+            <div 
+              style={{
+                background: 'var(--bg-card)',
+                border: '1px solid var(--border)',
+                borderRadius: 'var(--radius)',
+                padding: '16px 20px',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '16px',
+              }}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border)', paddingBottom: '8px' }}>
+                <span 
+                  style={{
+                    fontSize: '11px',
+                    fontWeight: 'bold',
+                    color: 'var(--red)',
+                    fontFamily: 'var(--font-mono)',
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.05em',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                  }}
+                >
                   <span className="relative flex h-2 w-2">
                     <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#ff5252] opacity-75"></span>
                     <span className="relative inline-flex rounded-full h-2 w-2 bg-[#ff5252]"></span>
                   </span>
                   Live X Sentiment
                 </span>
-                <span className="text-[9px] text-slate-500 font-semibold uppercase">
-                  Last updated: {lastUpdatedSeconds}s ago
+                <span style={{ fontSize: '9px', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', fontWeight: 'bold' }}>
+                  LAST UPDATED: {lastUpdatedSeconds}s AGO
                 </span>
               </div>
 
               {sentimentLoading && !sentimentData ? (
-                <div className="flex justify-center items-center py-4 gap-2 text-[10px] text-slate-500">
-                  <div className="w-3.5 h-3.5 border-2 border-t-[#ff5252] border-r-transparent border-b-transparent border-l-transparent rounded-full animate-spin" />
+                <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', padding: '16px 0', gap: '8px', fontSize: '10px', fontFamily: 'var(--font-mono)', color: 'var(--text-muted)' }}>
+                  <div 
+                    style={{
+                      width: '14px',
+                      height: '14px',
+                      border: '2px solid transparent',
+                      borderTopColor: 'var(--red)',
+                      borderRadius: '50%',
+                      animation: 'spin 1s linear infinite',
+                    }} 
+                  />
                   CONNECTING LIVE GROK SOCIAL FEED...
                 </div>
               ) : sentimentError ? (
-                <div className="text-[11px] font-bold text-[#ffab40] bg-[#ffab40]/5 border border-[#ffab40]/20 rounded p-3 text-center animate-pulse">
+                <div style={{ fontSize: '11px', fontWeight: 'bold', color: 'var(--amber)', background: 'var(--amber-glow)', border: '1px solid rgba(255, 183, 77, 0.2)', borderRadius: 'var(--radius-sm)', padding: '12px', textAlign: 'center' }} className="animate-pulse">
                   Sentiment feed offline
                 </div>
               ) : sentimentData && sentimentData.degraded ? (
-                <div className="text-[11px] font-bold text-[#ffab40] bg-[#ffab40]/5 border border-[#ffab40]/20 rounded p-3 text-center animate-pulse">
+                <div style={{ fontSize: '11px', fontWeight: 'bold', color: 'var(--amber)', background: 'var(--amber-glow)', border: '1px solid rgba(255, 183, 77, 0.2)', borderRadius: 'var(--radius-sm)', padding: '12px', textAlign: 'center' }} className="animate-pulse">
                   Live feed loading...
                 </div>
               ) : sentimentData ? (
-                <div className="space-y-4 animate-fade-in text-xs">
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }} className="animate-fade-in text-xs">
                   {/* Sentiment score sliding bar */}
-                  <div className="space-y-1.5">
-                    <div className="flex justify-between items-center text-[9px] font-bold text-slate-400">
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '9px', fontFamily: 'var(--font-mono)', fontWeight: 'bold', color: 'var(--text-muted)' }}>
                       <span>SENTIMENT SCORE</span>
-                      <span className={sentimentData.sentimentScore > 0 ? 'text-[#00e676]' : sentimentData.sentimentScore < 0 ? 'text-[#ff5252]' : 'text-slate-400'}>
+                      <span style={{ color: sentimentData.sentimentScore > 0 ? 'var(--green)' : sentimentData.sentimentScore < 0 ? 'var(--red)' : 'var(--text-muted)' }}>
                         {sentimentData.sentimentScore > 0 ? `+${sentimentData.sentimentScore}` : sentimentData.sentimentScore}
                       </span>
                     </div>
-                    <div className="relative h-2 w-full rounded-full bg-gradient-to-r from-[#ff5252] via-[#ffab40] to-[#00e676]">
+                    <div 
+                      style={{
+                        position: 'relative',
+                        height: '2px',
+                        width: '100%',
+                        borderRadius: '2px',
+                        background: 'linear-gradient(to right, var(--red) 0%, var(--amber) 50%, var(--green) 100%)',
+                      }}
+                    >
                       <div 
-                        className="absolute top-1/2 -translate-y-1/2 w-3 h-3 bg-white border border-slate-900 rounded-full shadow-[0_0_8px_rgba(255,255,255,0.8)] -ml-1.5 transition-all duration-300"
-                        style={{ left: `${((sentimentData.sentimentScore + 100) / 200) * 100}%` }}
+                        style={{
+                          position: 'absolute',
+                          top: '50%',
+                          transform: 'translateY(-50%)',
+                          width: '10px',
+                          height: '10px',
+                          background: '#FFFFFF',
+                          border: '1px solid var(--bg-primary)',
+                          borderRadius: '50%',
+                          boxShadow: '0 0 6px rgba(255,255,255,0.8)',
+                          marginLeft: '-5px',
+                          transition: 'all 0.3s',
+                          left: `${((sentimentData.sentimentScore + 100) / 200) * 100}%`,
+                        }}
                       />
                     </div>
-                    <div className="flex justify-between text-[8px] text-slate-600 font-bold font-mono">
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '8px', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', fontWeight: 'bold' }}>
                       <span>-100 BEARISH</span>
                       <span>0 NEUTRAL</span>
                       <span>+100 BULLISH</span>
@@ -737,32 +1447,47 @@ XAI_API_KEY=your-xai-key-here`}
                   </div>
 
                   {/* Top 3 X posts cards */}
-                  <div className="space-y-2">
-                    <div className="text-[9px] font-bold text-slate-500 uppercase tracking-wider">Top X Posts</div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                    <div style={{ fontSize: '9px', fontFamily: 'var(--font-mono)', color: 'var(--text-muted)', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Top X Posts</div>
                     {sentimentData.topPosts && sentimentData.topPosts.length > 0 ? (
-                      sentimentData.topPosts.slice(0, 3).map((post, idx) => (
-                        <div key={idx} className="p-2.5 rounded border border-[#1e2a38] bg-[#080c10]/80 text-[11px] leading-relaxed font-sans text-slate-300 border-l-2 border-l-[#ff5252]/40">
-                          "{post}"
-                        </div>
-                      ))
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                        {sentimentData.topPosts.slice(0, 3).map((post, idx) => (
+                          <div 
+                            key={idx} 
+                            style={{
+                              padding: '10px 12px',
+                              borderRadius: 'var(--radius-sm)',
+                              border: '1px solid var(--border)',
+                              borderLeft: '2px solid rgba(255, 82, 82, 0.4)',
+                              background: 'rgba(255,255,255,0.01)',
+                              fontSize: '11px',
+                              lineHeight: '1.5',
+                              fontFamily: 'var(--font-sans)',
+                              color: 'var(--text-secondary)',
+                            }}
+                          >
+                            "{post}"
+                          </div>
+                        ))}
+                      </div>
                     ) : (
-                      <div className="text-[10px] text-slate-500 italic">No posts scraped recently.</div>
+                      <div style={{ fontSize: '10px', color: 'var(--text-muted)', fontStyle: 'italic' }}>No posts scraped recently.</div>
                     )}
                   </div>
 
                   {/* News Headlines */}
-                  <div className="space-y-2">
-                    <div className="text-[9px] font-bold text-slate-500 uppercase tracking-wider">Breaking News Headlines</div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                    <div style={{ fontSize: '9px', fontFamily: 'var(--font-mono)', color: 'var(--text-muted)', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Breaking News Headlines</div>
                     {sentimentData.newsHeadlines && sentimentData.newsHeadlines.length > 0 ? (
-                      <ul className="space-y-1.5 list-disc pl-4 text-slate-400 font-sans text-[11px]">
+                      <ul style={{ display: 'flex', flexDirection: 'column', gap: '6px', listStyleType: 'disc', paddingLeft: '16px', margin: 0, color: 'var(--text-secondary)', fontFamily: 'var(--font-sans)', fontSize: '11px', lineHeight: '1.5' }}>
                         {sentimentData.newsHeadlines.map((headline, idx) => (
-                          <li key={idx} className="leading-relaxed">
+                          <li key={idx}>
                             {headline}
                           </li>
                         ))}
                       </ul>
                     ) : (
-                      <div className="text-[10px] text-slate-500 italic">No news headlines compiled.</div>
+                      <div style={{ fontSize: '10px', color: 'var(--text-muted)', fontStyle: 'italic' }}>No news headlines compiled.</div>
                     )}
                   </div>
                 </div>
@@ -770,15 +1495,37 @@ XAI_API_KEY=your-xai-key-here`}
             </div>
           </div>
         ) : (
-          <div className="h-40 flex flex-col items-center justify-center text-xs text-slate-500 font-bold tracking-wider font-mono gap-2">
-            <div className="w-5 h-5 border-2 border-t-[#00d4ff] border-r-transparent border-b-transparent border-l-transparent rounded-full animate-spin" />
+          <div style={{ height: '160px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', fontSize: '11px', fontWeight: 'bold', fontFamily: 'var(--font-mono)', color: 'var(--text-muted)', gap: '12px' }}>
+            <div 
+              style={{
+                width: '20px',
+                height: '20px',
+                border: '2px solid transparent',
+                borderTopColor: 'var(--accent)',
+                borderRadius: '50%',
+                animation: 'spin 1s linear infinite',
+              }} 
+            />
             INITIALIZING REPORT...
           </div>
         )}
       </div>
 
       {/* SECTION 7: Stationary Disclaimer Footer */}
-      <div className="p-4 border-t border-[#1e2a38] bg-[#0d1219]/60 shrink-0 text-slate-500 text-[10px] leading-relaxed font-sans select-none text-center">
+      <div 
+        style={{
+          padding: '12px 20px',
+          borderTop: '1px solid var(--border)',
+          background: 'rgba(0,0,0,0.2)',
+          color: 'var(--text-muted)',
+          fontSize: '10px',
+          fontFamily: 'var(--font-sans)',
+          textAlign: 'center',
+          lineHeight: '1.6',
+          userSelect: 'none',
+          flexShrink: 0,
+        }}
+      >
         NFA — This is not financial advice. Prediction markets carry significant risk. <br />
         Always do your own research. DYOR as always.
       </div>

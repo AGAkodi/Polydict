@@ -59,7 +59,15 @@ export interface MergedMarket {
   image: string;
   icon: string;
   isClobMatched: boolean;
+  priceChange24h?: number;
+  priceChange1h?: number;
+  sentimentRatio?: number;
+  sentimentBull?: number;
+  sentimentBear?: number;
+  clobTokenIds?: string[];
+  spread?: number;
 }
+
 
 // Category Mapping to Gamma API tag parameter (mapped to new keys)
 export const CATEGORY_TAG_MAP: Record<string, string | null> = {

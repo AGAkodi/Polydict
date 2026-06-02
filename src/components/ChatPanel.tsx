@@ -11,9 +11,10 @@ interface ChatPanelProps {
   analysis: any; // AnalysisResult from prediction card
   markets?: MergedMarket[]; // All markets for cross-market comparisons
   chatFocusTrigger?: number;
+  marketSentiment?: any;
 }
 
-export default function ChatPanel({ market, analysis, markets, chatFocusTrigger }: ChatPanelProps) {
+export default function ChatPanel({ market, analysis, markets, chatFocusTrigger, marketSentiment }: ChatPanelProps) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputMessage, setInputMessage] = useState('');
   const [loading, setLoading] = useState(false);
@@ -77,6 +78,7 @@ export default function ChatPanel({ market, analysis, markets, chatFocusTrigger 
           signals: analysis?.signals ?? analysis?.grokSignals ?? null,
           history: messages,
           message: finalMessageToSend,
+          marketSentiment,
         }),
       });
 
@@ -138,12 +140,28 @@ Description: ${target.description ?? 'N/A'}
 
   if (!market) {
     return (
-      <div className="h-full flex flex-col items-center justify-center p-8 bg-[#0d1219] border-l border-[#1e2a38] select-none text-center font-mono">
-        <div className="space-y-2">
-          <div className="text-slate-500 text-xs font-bold uppercase tracking-wider">
+      <div 
+        style={{
+          width: '360px',
+          minWidth: '360px',
+          height: '100%',
+          background: 'var(--bg-secondary)',
+          borderLeft: '1px solid var(--border)',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: '32px',
+          userSelect: 'none',
+          textAlign: 'center',
+          fontFamily: 'var(--font-mono)',
+        }}
+      >
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+          <div style={{ color: 'var(--text-muted)', fontSize: '11px', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.1em' }}>
             [PolyDict Chat Standby]
           </div>
-          <p className="text-[11px] text-slate-600 max-w-[220px] mx-auto leading-relaxed font-sans">
+          <p style={{ fontSize: '12px', color: 'var(--text-secondary)', maxWidth: '220px', margin: '0 auto', lineHeight: '1.6', fontFamily: 'var(--font-sans)' }}>
             Select a market from the sidebar to open the AI prediction chat channel.
           </p>
         </div>
@@ -175,44 +193,146 @@ Description: ${target.description ?? 'N/A'}
   };
 
   return (
-    <div className="h-full flex flex-col bg-[#0d1219] border-l border-[#1e2a38] overflow-hidden select-text font-mono">
+    <div 
+      style={{
+        width: '360px',
+        minWidth: '360px',
+        height: '100%',
+        background: 'var(--bg-secondary)',
+        borderLeft: '1px solid var(--border)',
+        display: 'flex',
+        flexDirection: 'column',
+        overflow: 'hidden',
+      }}
+    >
       {/* Panel Top Label */}
-      <div className="p-4 border-b border-[#1e2a38] bg-[#0d1219] shrink-0">
-        <div className="flex items-center justify-between">
-          <span className="text-xs font-bold text-slate-200 tracking-wider">
-            AI Analyst Chat
-          </span>
-          <span className={`text-[10px] border px-2 py-0.5 rounded font-bold uppercase ${getVerdictBadgeColor(analysis?.verdict)}`}>
-            {analysis?.verdict || 'SKIP'} MODE
-          </span>
-        </div>
+      <div 
+        style={{
+          padding: '16px 20px',
+          borderBottom: '1px solid var(--border)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          background: 'var(--bg-secondary)',
+        }}
+        className="shrink-0"
+      >
+        <span 
+          style={{
+            fontFamily: 'var(--font-sans)',
+            fontSize: '11px',
+            fontWeight: 600,
+            textTransform: 'uppercase',
+            letterSpacing: '0.08em',
+            color: 'var(--text-muted)',
+          }}
+        >
+          AI Analyst Chat
+        </span>
+        <span 
+          style={{
+            fontFamily: 'var(--font-mono)',
+            fontSize: '10px',
+            fontWeight: 600,
+            padding: '2px 8px',
+            borderRadius: '4px',
+            border: '1px solid var(--border)',
+            background: analysis?.verdict === 'YES' ? 'var(--green-glow)' : 
+                        analysis?.verdict === 'NO' ? 'var(--red-glow)' : 'var(--amber-glow)',
+            borderColor: analysis?.verdict === 'YES' ? 'rgba(0, 230, 118, 0.2)' : 
+                         analysis?.verdict === 'NO' ? 'rgba(255, 82, 82, 0.2)' : 'rgba(255, 183, 77, 0.2)',
+            color: analysis?.verdict === 'YES' ? 'var(--green)' : 
+                   analysis?.verdict === 'NO' ? 'var(--red)' : 'var(--amber)',
+          }}
+        >
+          {analysis?.verdict || 'SKIP'} MODE
+        </span>
       </div>
 
       {/* Message Feed History */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-4 no-scrollbar bg-[#080c10]/20 flex flex-col">
+      <div 
+        style={{
+          flex: 1,
+          overflowY: 'auto',
+          padding: '16px',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '12px',
+        }}
+        className="no-scrollbar"
+      >
         {messages.length === 0 ? (
-          <div className="h-full flex flex-col justify-end space-y-4 pb-2">
+          <div style={{ height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'end', gap: '16px', paddingBottom: '8px' }}>
             {/* Initial Welcome message */}
-            <div className="p-3.5 border border-[#1e2a38] bg-[#080c10] rounded text-xs text-slate-400 space-y-2">
-              <p className="text-[#00d4ff] font-bold tracking-wide font-mono">
-                &gt; PolyDict Analyst:
-              </p>
-              <p className="leading-relaxed select-text font-sans text-xs text-slate-300">
-                Discuss the resolution criteria, sentiment indicators, and tail risks of this contract. I can run live search filters on command.
-              </p>
+            <div 
+              style={{
+                alignSelf: 'flex-start',
+                maxWidth: '90%',
+                background: 'var(--bg-card)',
+                border: '1px solid var(--border)',
+                borderRadius: '2px 12px 12px 12px',
+                padding: '10px 14px',
+                fontSize: '12px',
+                color: 'var(--text-secondary)',
+                fontFamily: 'var(--font-mono)',
+                lineHeight: '1.6',
+              }}
+            >
+              <div 
+                style={{
+                  fontSize: '9px',
+                  fontWeight: 600,
+                  letterSpacing: '0.1em',
+                  color: 'var(--accent)',
+                  textTransform: 'uppercase',
+                  marginBottom: '4px',
+                }}
+              >
+                PolyDict Analyst
+              </div>
+              Discuss the resolution criteria, sentiment indicators, and tail risks of this contract. I can run live search filters on command.
             </div>
 
             {/* Clickable Suggested starter chips */}
-            <div className="space-y-2">
-              <div className="text-[10px] font-bold text-slate-500 uppercase tracking-wider px-1 font-mono">
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              <div 
+                style={{
+                  fontSize: '9px',
+                  fontWeight: '600',
+                  letterSpacing: '0.1em',
+                  color: 'var(--text-muted)',
+                  textTransform: 'uppercase',
+                  paddingLeft: '4px',
+                }}
+              >
                 Suggested Questions
               </div>
-              <div className="flex flex-col gap-2">
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                 {suggestedQuestions.map((q: string, idx: number) => (
                   <button
                     key={idx}
                     onClick={() => handleSendMessage(q)}
-                    className="w-full text-left px-3.5 py-2.5 rounded border border-[#1e2a38] bg-[#080c10] text-[11px] text-[#00d4ff] hover:bg-[#00d4ff]/10 hover:border-[#00d4ff]/40 transition-all cursor-pointer font-semibold font-mono truncate"
+                    style={{
+                      padding: '8px 12px',
+                      background: 'transparent',
+                      border: '1px solid var(--border)',
+                      borderRadius: 'var(--radius-sm)',
+                      fontSize: '11px',
+                      color: 'var(--accent)',
+                      fontFamily: 'var(--font-mono)',
+                      cursor: 'pointer',
+                      textAlign: 'left',
+                      transition: 'all 0.15s',
+                      outline: 'none',
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.background = 'var(--accent-glow)';
+                      e.currentTarget.style.borderColor = 'var(--accent-border)';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.background = 'transparent';
+                      e.currentTarget.style.borderColor = 'var(--border)';
+                    }}
                   >
                     &gt; {q}
                   </button>
@@ -221,23 +341,50 @@ Description: ${target.description ?? 'N/A'}
             </div>
           </div>
         ) : (
-          <div className="space-y-4 flex-1">
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', flex: 1 }}>
             {messages.map((msg, idx) => {
               const isUser = msg.role === 'user';
               return (
                 <div
                   key={idx}
-                  className={`flex flex-col max-w-[95%] ${isUser ? 'ml-auto items-end' : 'mr-auto items-start'}`}
+                  style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignSelf: isUser ? 'flex-end' : 'flex-start',
+                    maxWidth: isUser ? '85%' : '90%',
+                    alignItems: isUser ? 'flex-end' : 'flex-start',
+                  }}
                 >
                   {/* Sender label & Copy action */}
-                  <div className="flex items-center gap-2 mb-1">
-                    <span className="text-[9px] font-bold text-slate-500 uppercase tracking-wide">
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+                    <span 
+                      style={{
+                        fontSize: '9px',
+                        fontWeight: '600',
+                        letterSpacing: '0.1em',
+                        color: 'var(--text-muted)',
+                        textTransform: 'uppercase',
+                      }}
+                    >
                       {isUser ? 'User' : 'PolyDict Agent'}
                     </span>
                     {!isUser && (
                       <button
                         onClick={() => handleCopyMessage(msg.content, idx)}
-                        className="text-[9px] text-[#00d4ff] hover:text-[#00e676] bg-transparent border-none cursor-pointer font-bold transition-all uppercase tracking-wider flex items-center gap-0.5"
+                        style={{
+                          fontSize: '9px',
+                          color: 'var(--accent)',
+                          background: 'transparent',
+                          border: 'none',
+                          cursor: 'pointer',
+                          fontWeight: 'bold',
+                          transition: 'color 0.15s',
+                          padding: 0,
+                          textTransform: 'uppercase',
+                          letterSpacing: '0.05em',
+                        }}
+                        onMouseEnter={(e) => e.currentTarget.style.color = 'var(--green)'}
+                        onMouseLeave={(e) => e.currentTarget.style.color = 'var(--accent)'}
                       >
                         {copiedId === idx ? '✓ Copied' : '⧉ Copy'}
                       </button>
@@ -246,12 +393,31 @@ Description: ${target.description ?? 'N/A'}
 
                   {/* Text bubble */}
                   <div
-                    className={`px-3 py-2 rounded text-xs select-text leading-relaxed border ${isUser
-                      ? 'bg-[#0d1219] text-slate-200 border-[#1e2a38] font-sans'
-                      : 'bg-[#080c10] text-slate-200 border-[#00d4ff]/20 font-mono text-[11px]'
-                      }`}
+                    style={isUser ? {
+                      alignSelf: 'flex-end',
+                      background: 'rgba(0,209,255,0.08)',
+                      border: '1px solid rgba(0,209,255,0.15)',
+                      borderRadius: '12px 12px 2px 12px',
+                      padding: '10px 14px',
+                      fontSize: '12px',
+                      color: 'var(--text-primary)',
+                      fontFamily: 'var(--font-sans)',
+                      lineHeight: '1.55',
+                      wordBreak: 'break-word',
+                    } : {
+                      alignSelf: 'flex-start',
+                      background: 'var(--bg-card)',
+                      border: '1px solid var(--border)',
+                      borderRadius: '2px 12px 12px 12px',
+                      padding: '10px 14px',
+                      fontSize: '12px',
+                      color: 'var(--text-secondary)',
+                      fontFamily: 'var(--font-mono)',
+                      lineHeight: '1.6',
+                      wordBreak: 'break-word',
+                    }}
                   >
-                    {!isUser && <span className="text-[#00d4ff] font-bold">&gt; </span>}
+                    {!isUser && <span style={{ color: 'var(--accent)', fontWeight: 'bold' }}>&gt; </span>}
                     {msg.content}
                   </div>
                 </div>
@@ -260,30 +426,82 @@ Description: ${target.description ?? 'N/A'}
 
             {/* Typing Indicator */}
             {loading && (
-              <div className="mr-auto items-start flex flex-col max-w-[95%]">
-                <div className="flex items-center gap-2 mb-1">
-                  <span className="text-[9px] font-bold text-slate-500 uppercase tracking-wide">
+              <div style={{ display: 'flex', flexDirection: 'column', alignSelf: 'flex-start', maxWidth: '90%', alignItems: 'flex-start' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+                  <span 
+                    style={{
+                      fontSize: '9px',
+                      fontWeight: '600',
+                      letterSpacing: '0.1em',
+                      color: 'var(--text-muted)',
+                      textTransform: 'uppercase',
+                    }}
+                  >
                     PolyDict Agent
                   </span>
                 </div>
-                <div className="px-3 py-2 rounded text-xs bg-[#080c10] text-[#00d4ff] border border-[#00d4ff]/20 font-mono text-[11px] matrix-cursor">
+                <div
+                  style={{
+                    alignSelf: 'flex-start',
+                    background: 'var(--bg-card)',
+                    border: '1px solid var(--border)',
+                    borderRadius: '2px 12px 12px 12px',
+                    padding: '10px 14px',
+                    fontSize: '12px',
+                    color: 'var(--accent)',
+                    fontFamily: 'var(--font-mono)',
+                    lineHeight: '1.6',
+                  }}
+                  className="matrix-cursor animate-pulse"
+                >
                   &gt; Resolving web & X metrics
                 </div>
               </div>
             )}
 
-            {/* Clickable Suggested follow-up chips (rendered at the bottom of messages list) */}
+            {/* Clickable Suggested follow-up chips */}
             {suggestedQuestions && suggestedQuestions.length > 0 && !loading && (
-              <div className="pt-4 space-y-2 mt-4 border-t border-[#1e2a38]/50">
-                <div className="text-[10px] font-bold text-slate-500 uppercase tracking-wider font-mono px-1">
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', borderTop: '1px solid var(--border)', paddingTop: '16px', marginTop: '12px' }}>
+                <div 
+                  style={{
+                    fontSize: '9px',
+                    fontWeight: '600',
+                    letterSpacing: '0.1em',
+                    color: 'var(--text-muted)',
+                    textTransform: 'uppercase',
+                    paddingLeft: '4px',
+                  }}
+                >
                   Suggested Follow-Ups:
                 </div>
-                <div className="flex flex-wrap gap-2">
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
                   {suggestedQuestions.map((q: string, idx: number) => (
                     <button
                       key={idx}
                       onClick={() => handleSendMessage(q)}
-                      className="text-left px-3 py-1.5 rounded border border-[#1e2a38] bg-[#080c10] text-[10px] font-mono text-[#00d4ff] hover:bg-[#00d4ff]/10 hover:border-[#00d4ff]/40 transition-all cursor-pointer font-semibold max-w-full truncate"
+                      style={{
+                        padding: '6px 10px',
+                        background: 'transparent',
+                        border: '1px solid var(--border)',
+                        borderRadius: 'var(--radius-sm)',
+                        fontSize: '10px',
+                        color: 'var(--accent)',
+                        fontFamily: 'var(--font-mono)',
+                        cursor: 'pointer',
+                        textAlign: 'left',
+                        transition: 'all 0.15s',
+                        maxWidth: '100%',
+                        outline: 'none',
+                      }}
+                      className="truncate"
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.background = 'var(--accent-glow)';
+                        e.currentTarget.style.borderColor = 'var(--accent-border)';
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.background = 'transparent';
+                        e.currentTarget.style.borderColor = 'var(--border)';
+                      }}
                     >
                       {q}
                     </button>
@@ -292,23 +510,58 @@ Description: ${target.description ?? 'N/A'}
               </div>
             )}
 
-            <div ref={messagesEndRef} className="h-2" />
+            <div ref={messagesEndRef} style={{ height: '2px' }} />
           </div>
         )}
       </div>
 
-      {/* Bottom Message Input form with Injected Context Badge and Comparison Chip */}
-      <div className="border-t border-[#1e2a38] bg-[#0d1219] shrink-0 flex flex-col">
+      {/* Bottom Message Input form */}
+      <div 
+        style={{
+          borderTop: '1px solid var(--border)',
+          background: 'var(--bg-secondary)',
+          display: 'flex',
+          flexDirection: 'column',
+        }}
+        className="shrink-0"
+      >
         {/* Comparison Chip Banner */}
         {detectedMarket && (
-          <div className="mx-3 mt-2.5 p-2 rounded border border-[#ffab40]/30 bg-[#ffab40]/[0.02] text-[10px] font-mono text-[#ffab40] flex items-center justify-between gap-2 animate-fade-in shrink-0">
+          <div 
+            style={{
+              margin: '8px 12px 0 12px',
+              padding: '8px 10px',
+              borderRadius: 'var(--radius-sm)',
+              border: '1px solid rgba(255, 183, 77, 0.2)',
+              background: 'var(--amber-glow)',
+              fontFamily: 'var(--font-mono)',
+              fontSize: '10px',
+              color: 'var(--amber)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: '8px',
+            }}
+            className="animate-fade-in shrink-0"
+          >
             <span className="truncate">
-              Compare with: <strong className="text-slate-200">"{detectedMarket.question.slice(0, 40)}..."</strong>
+              Compare with: <strong style={{ color: 'var(--text-primary)' }}>"{detectedMarket.question.slice(0, 35)}..."</strong>
             </span>
             <button
               type="button"
               onClick={() => loadComparisonContext(detectedMarket)}
-              className="px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider border border-[#ffab40]/40 bg-[#ffab40]/10 rounded hover:bg-[#ffab40]/20 text-[#ffab40] cursor-pointer transition-all active:scale-[0.97] shrink-0"
+              style={{
+                padding: '2px 6px',
+                fontSize: '8px',
+                fontWeight: 'bold',
+                textTransform: 'uppercase',
+                border: '1px solid rgba(255, 183, 77, 0.3)',
+                background: 'rgba(255, 183, 77, 0.1)',
+                color: 'var(--amber)',
+                borderRadius: '4px',
+                cursor: 'pointer',
+                transition: 'all 0.15s',
+              }}
             >
               Load context
             </button>
@@ -317,21 +570,47 @@ Description: ${target.description ?? 'N/A'}
 
         {/* Context Injected Alert */}
         {injectedComparisonContext && (
-          <div className="mx-3 mt-2.5 p-2 rounded border border-[#00e676]/30 bg-[#00e676]/[0.02] text-[10px] font-mono text-[#00e676] flex items-center justify-between gap-2 animate-fade-in shrink-0">
+          <div 
+            style={{
+              margin: '8px 12px 0 12px',
+              padding: '8px 10px',
+              borderRadius: 'var(--radius-sm)',
+              border: '1px solid rgba(0, 230, 118, 0.2)',
+              background: 'var(--green-glow)',
+              fontFamily: 'var(--font-mono)',
+              fontSize: '10px',
+              color: 'var(--green)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: '8px',
+            }}
+            className="animate-fade-in shrink-0"
+          >
             <span>
               ✓ Comparison context loaded (will send on next message)
             </span>
             <button
               type="button"
               onClick={() => setInjectedComparisonContext(null)}
-              className="text-slate-400 hover:text-[#ff5252] text-xs px-1 font-bold"
+              style={{
+                background: 'transparent',
+                border: 'none',
+                color: 'var(--text-secondary)',
+                cursor: 'pointer',
+                fontSize: '11px',
+                fontWeight: 'bold',
+                padding: '0 4px',
+              }}
+              onMouseEnter={(e) => e.currentTarget.style.color = 'var(--red)'}
+              onMouseLeave={(e) => e.currentTarget.style.color = 'var(--text-secondary)'}
             >
               ✕
             </button>
           </div>
         )}
 
-        <form onSubmit={handleFormSubmit} className="p-3 flex gap-2">
+        <form onSubmit={handleFormSubmit} style={{ padding: '12px 16px', display: 'flex', gap: '8px', alignItems: 'flex-end' }}>
           <input
             ref={inputRef}
             type="text"
@@ -339,12 +618,49 @@ Description: ${target.description ?? 'N/A'}
             onChange={(e) => handleInputChange(e.target.value)}
             disabled={loading}
             placeholder="Ask agent regarding contract..."
-            className="flex-1 bg-[#080c10] border border-[#1e2a38] focus:border-[#00d4ff]/60 focus:ring-1 focus:ring-[#00d4ff]/20 text-slate-100 placeholder-slate-600 outline-none text-xs px-3 py-2.5 rounded font-mono transition-all"
+            style={{
+              flex: 1,
+              background: 'var(--bg-primary)',
+              border: '1px solid var(--border)',
+              borderRadius: 'var(--radius-sm)',
+              color: 'var(--text-primary)',
+              fontSize: '12px',
+              fontFamily: 'var(--font-sans)',
+              padding: '10px 14px',
+              outline: 'none',
+              transition: 'border-color 0.15s',
+              height: '40px',
+            }}
+            onFocus={(e) => e.target.style.borderColor = 'var(--accent-border)'}
+            onBlur={(e) => e.target.style.borderColor = 'var(--border)'}
           />
           <button
             type="submit"
             disabled={loading || !inputMessage.trim()}
-            className="px-4 py-2 bg-[#00d4ff]/10 border border-[#00d4ff] hover:bg-[#00d4ff]/20 hover:border-[#00d4ff] text-[#00d4ff] font-bold text-xs transition-all rounded disabled:opacity-30 transition-all cursor-pointer shrink-0 font-mono"
+            style={{
+              background: loading || !inputMessage.trim() ? 'rgba(0,209,255,0.03)' : 'rgba(0,209,255,0.1)',
+              border: '1px solid var(--accent-border)',
+              borderRadius: 'var(--radius-sm)',
+              color: 'var(--accent)',
+              fontSize: '11px',
+              fontFamily: 'var(--font-mono)',
+              fontWeight: '600',
+              padding: '10px 16px',
+              cursor: 'pointer',
+              transition: 'all 0.15s',
+              height: '40px',
+              opacity: loading || !inputMessage.trim() ? 0.35 : 1,
+            }}
+            onMouseEnter={(e) => {
+              if (!loading && inputMessage.trim()) {
+                e.currentTarget.style.background = 'rgba(0,209,255,0.18)';
+              }
+            }}
+            onMouseLeave={(e) => {
+              if (!loading && inputMessage.trim()) {
+                e.currentTarget.style.background = 'rgba(0,209,255,0.1)';
+              }
+            }}
           >
             Send
           </button>

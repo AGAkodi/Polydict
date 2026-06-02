@@ -11,80 +11,87 @@ interface SignalRowProps {
 }
 
 export default function SignalRow({ signal }: SignalRowProps) {
-  const getDirectionDetails = (dir: string) => {
+  const getDotColor = (dir: string) => {
     switch (dir.toLowerCase()) {
       case 'bull':
-        return {
-          icon: '▲',
-          color: 'text-[#00e676]',
-          label: 'BULL'
-        };
+        return 'var(--green)';
       case 'bear':
-        return {
-          icon: '▼',
-          color: 'text-[#ff5252]',
-          label: 'BEAR'
-        };
+        return 'var(--red)';
       case 'neutral':
       default:
-        return {
-          icon: '◆',
-          color: 'text-[#ffab40]',
-          label: 'NEUT'
-        };
+        return 'var(--amber)';
     }
   };
 
-  const getSourceDetails = (src?: string) => {
+  const getSourceLabel = (src?: string) => {
     switch (src?.toLowerCase()) {
       case 'news':
-        return {
-          border: 'border-[#00d4ff]/30',
-          bg: 'bg-[#00d4ff]/5',
-          label: 'NEWS',
-          textColor: 'text-[#00d4ff]'
-        };
+        return 'NEWS';
       case 'social':
-        return {
-          border: 'border-[#ffab40]/30',
-          bg: 'bg-[#ffab40]/5',
-          label: 'SOCIAL',
-          textColor: 'text-[#ffab40]'
-        };
+        return 'SOCIAL';
       case 'market':
-        return {
-          border: 'border-indigo-500/30',
-          bg: 'bg-indigo-500/5',
-          label: 'MARKET',
-          textColor: 'text-indigo-400'
-        };
+        return 'MARKET';
       default:
-        return {
-          border: 'border-[#1e2a38]',
-          bg: 'bg-[#111820]',
-          label: 'SIGNAL',
-          textColor: 'text-slate-400'
-        };
+        return 'SIGNAL';
     }
   };
 
-  const dir = getDirectionDetails(signal.direction);
-  const src = getSourceDetails(signal.source);
+  const dotColor = getDotColor(signal.direction);
+  const sourceLabel = getSourceLabel(signal.source);
 
   return (
-    <div className={`flex items-center justify-between gap-3 p-3 rounded-md border text-xs font-mono transition-all ${src.border} ${src.bg}`}>
-      <div className="flex items-start gap-2.5 flex-1 min-w-0">
-        <span className={`font-bold shrink-0 text-[10px] tracking-wider px-1.5 py-0.5 rounded border border-current/20 bg-current/5 ${src.textColor}`}>
-          {src.label}
+    <div 
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: '12px',
+        padding: '8px 0',
+      }}
+    >
+      {/* 4px circle colored dot */}
+      <span 
+        style={{
+          width: '6px',
+          height: '6px',
+          minWidth: '6px',
+          borderRadius: '50%',
+          background: dotColor,
+          boxShadow: `0 0 6px ${dotColor}`,
+          display: 'inline-block',
+          flexShrink: 0,
+        }} 
+      />
+
+      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: 1, minWidth: 0 }}>
+        {/* Source label */}
+        <span 
+          style={{
+            fontFamily: 'var(--font-mono)',
+            fontSize: '9px',
+            fontWeight: '600',
+            color: 'var(--text-muted)',
+            letterSpacing: '0.05em',
+            flexShrink: 0,
+          }}
+        >
+          [{sourceLabel}]
         </span>
-        <span className="text-slate-200 select-text leading-relaxed font-sans text-xs">
+
+        {/* Text in Inter 12px */}
+        <span 
+          style={{
+            fontFamily: 'var(--font-sans)',
+            fontSize: '12px',
+            color: 'var(--text-secondary)',
+            lineHeight: '1.4',
+            whiteSpace: 'normal',
+            wordBreak: 'break-word',
+          }}
+          className="truncate"
+        >
           {signal.text}
         </span>
-      </div>
-      <div className={`flex items-center font-bold shrink-0 text-[10px] tracking-wider ${dir.color}`}>
-        {dir.icon} {dir.label}
       </div>
     </div>
   );
 }
-

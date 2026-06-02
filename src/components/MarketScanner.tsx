@@ -13,6 +13,7 @@ interface MarketScannerProps {
   isRefreshing: boolean;
   onRefresh: () => void;
   pricesError?: boolean;
+  hideHeaderAndTabs?: boolean;
 }
 
 const ITEMS_PER_PAGE = 15;
@@ -27,6 +28,7 @@ export default function MarketScanner({
   isRefreshing,
   onRefresh,
   pricesError,
+  hideHeaderAndTabs = false,
 }: MarketScannerProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [visibleCount, setVisibleCount] = useState(ITEMS_PER_PAGE);
@@ -36,12 +38,12 @@ export default function MarketScanner({
     setVisibleCount(ITEMS_PER_PAGE);
   }, [activeCategory, searchQuery]);
 
-  // Safety net filtering on markets - trust the API response directly as requested
+  // Safety net filtering on markets
   const safetyFilteredMarkets = useMemo(() => {
     return markets || [];
   }, [markets]);
 
-  // Find the trending featured market of the day (highest volume market in currently loaded category set)
+  // Find the trending featured market of the day (highest volume market)
   const featuredMarket = useMemo(() => {
     if (!safetyFilteredMarkets || safetyFilteredMarkets.length === 0) return null;
     return [...safetyFilteredMarkets].sort((a, b) => (b.volume || 0) - (a.volume || 0))[0];
@@ -58,7 +60,7 @@ export default function MarketScanner({
     );
   }, [safetyFilteredMarkets, searchQuery]);
 
-  // Filter out the featured market from the scrolling list below when search is empty to avoid duplicate display
+  // Filter out the featured market from the scrolling list below when search is empty
   const scrollableMarkets = useMemo(() => {
     if (!searchQuery.trim() && featuredMarket) {
       return filteredMarkets.filter((m) => m.id !== featuredMarket.id);
@@ -78,77 +80,102 @@ export default function MarketScanner({
   };
 
   return (
-    <div className="flex flex-col h-full w-full bg-[#0d1219] border-r border-[#1e2a38]">
-      {/* Top Header Panel */}
-      <div className="p-4 border-b border-[#1e2a38] flex flex-col gap-2 shrink-0 bg-[#0d1219]">
-        <div className="flex items-center justify-between">
-          {/* Logo with Pulsing Green Network Dot */}
-          <div className="flex items-center">
-            <span className="relative flex h-2 w-2 mr-2.5">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#00e676] opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-2 w-2 bg-[#00e676]"></span>
-            </span>
-            <h1 className="text-sm font-bold tracking-wider font-mono text-white select-none">
-              PolyDict
-            </h1>
+    <div 
+      className="flex flex-col h-full w-full"
+      style={{
+        background: 'var(--bg-secondary)',
+        height: '100%',
+      }}
+    >
+      {/* Top Header Panel - only rendered if hideHeaderAndTabs is false */}
+      {!hideHeaderAndTabs && (
+        <div 
+          style={{
+            padding: '16px',
+            borderBottom: '1px solid var(--border)',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '8px',
+            background: 'var(--bg-secondary)',
+          }}
+          className="shrink-0"
+        >
+          <div className="flex items-center justify-between">
+            <div className="flex items-center">
+              <span className="relative flex h-2 w-2 mr-2.5">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#00e676] opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-[#00e676]"></span>
+              </span>
+              <h1 className="text-sm font-bold tracking-wider font-mono text-white select-none">
+                PolyDict
+              </h1>
+              <span className="ml-2 text-[9px] font-bold font-mono bg-[#00d4ff]/10 text-[#00d4ff] px-1.5 py-0.5 rounded border border-[#00d4ff]/20">
+                DESK
+              </span>
+            </div>
 
-            <span className="ml-2 text-[9px] font-bold font-mono bg-[#00d4ff]/10 text-[#00d4ff] px-1.5 py-0.5 rounded border border-[#00d4ff]/20">
-              DESK
-            </span>
+            <button
+              onClick={onRefresh}
+              disabled={isRefreshing}
+              className="p-1.5 rounded-sm border border-[#1e2a38] bg-[#080c10] text-slate-400 hover:text-[#00d4ff] hover:bg-[#1e2a38] hover:border-[#00d4ff]/30 disabled:opacity-40 transition-all cursor-pointer"
+            >
+              <svg className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M4 4v5h.582m15.356 2A8.001 8.001 0 1121.21 7.89M21 3v5h-5" />
+              </svg>
+            </button>
           </div>
 
-          {/* Manual Refresh Button */}
-          <button
-            onClick={onRefresh}
-            disabled={isRefreshing}
-            className="p-1.5 rounded-sm border border-[#1e2a38] bg-[#080c10] text-slate-400 hover:text-[#00d4ff] hover:bg-[#1e2a38] hover:border-[#00d4ff]/30 disabled:opacity-40 transition-all cursor-pointer"
-            title="Refresh Feed"
-          >
-            <svg
-              className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`}
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth="2.5"
-                d="M4 4v5h.582m15.356 2A8.001 8.001 0 1121.21 7.89M21 3v5h-5"
-              />
-            </svg>
-          </button>
+          <div className="flex justify-between items-center text-[9px] font-mono text-slate-500">
+            {pricesError ? (
+              <span className="flex items-center gap-1 text-[#ff5252] font-semibold animate-pulse">
+                <span className="h-1.5 w-1.5 rounded-full bg-[#ff5252]"></span>
+                CLOB TELEMETRY OFFLINE
+              </span>
+            ) : (
+              <span className="flex items-center gap-1">
+                <span className="h-1.5 w-1.5 rounded-full bg-[#00e676] animate-pulse"></span>
+                LIVE-ONLY TELEMETRY
+              </span>
+            )}
+            <span>SYNCED: {lastUpdated}</span>
+          </div>
         </div>
+      )}
 
-        {/* Caching Status Bar */}
-        <div className="flex justify-between items-center text-[9px] font-mono text-slate-500">
-          {pricesError ? (
-            <span className="flex items-center gap-1 text-[#ff5252] font-semibold animate-pulse">
-              <span className="h-1.5 w-1.5 rounded-full bg-[#ff5252]"></span>
-              CLOB TELEMETRY OFFLINE
-            </span>
-          ) : (
-            <span className="flex items-center gap-1">
-              <span className="h-1.5 w-1.5 rounded-full bg-[#00e676] animate-pulse"></span>
-              LIVE-ONLY TELEMETRY
-            </span>
-          )}
-          <span>SYNCED: {lastUpdated}</span>
-        </div>
-      </div>
-
-      {/* Category Pills Navigation */}
-      <CategoryTabs activeCategory={activeCategory} onSelectCategory={onSelectCategory} />
+      {/* Category Pills Navigation - only rendered if hideHeaderAndTabs is false */}
+      {!hideHeaderAndTabs && (
+        <CategoryTabs activeCategory={activeCategory} onSelectCategory={onSelectCategory} />
+      )}
 
       {/* Search Input Box */}
-      <div className="p-3 border-b border-[#1e2a38] bg-[#0d1219]/50 shrink-0">
+      <div 
+        style={{
+          padding: '12px',
+          borderBottom: '1px solid var(--border)',
+          background: 'rgba(255,255,255,0.01)',
+        }}
+        className="shrink-0"
+      >
         <div className="relative">
           <input
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Search prediction contracts..."
-            className="w-full bg-[#080c10] border border-[#1e2a38] focus:border-[#00d4ff]/60 focus:ring-1 focus:ring-[#00d4ff]/20 text-slate-100 placeholder-slate-600 outline-none text-xs font-mono px-3 py-2 rounded-sm transition-all"
+            style={{
+              width: '100%',
+              background: 'var(--bg-primary)',
+              border: '1px solid var(--border)',
+              borderRadius: 'var(--radius-sm)',
+              color: 'var(--text-primary)',
+              fontSize: '12px',
+              fontFamily: 'var(--font-sans)',
+              padding: '8px 12px',
+              outline: 'none',
+              transition: 'border-color 0.15s',
+            }}
+            onFocus={(e) => e.target.style.borderColor = 'var(--accent-border)'}
+            onBlur={(e) => e.target.style.borderColor = 'var(--border)'}
           />
           {searchQuery && (
             <button
@@ -162,42 +189,97 @@ export default function MarketScanner({
       </div>
 
       {/* Markets List Container */}
-      <div className="flex-1 overflow-y-auto no-scrollbar bg-[#080c10]/20">
+      <div className="flex-1 overflow-y-auto no-scrollbar" style={{ background: 'transparent' }}>
+        {/* Featured Contract Block */}
         {!searchQuery.trim() && featuredMarket && (
-          <div className="p-3 border-b border-[#1e2a38] bg-[#1a130b]/20">
-            <div className="text-[10px] font-semibold text-[#ffab40] flex items-center gap-1.5 mb-2 font-mono select-none uppercase tracking-wider">
+          <div 
+            style={{
+              padding: '12px',
+              borderBottom: '1px solid var(--border)',
+              background: 'rgba(255, 183, 77, 0.02)',
+            }}
+          >
+            <div 
+              style={{
+                fontFamily: 'var(--font-mono)',
+                fontSize: '9px',
+                fontWeight: '600',
+                letterSpacing: '0.14em',
+                color: 'var(--amber)',
+                textTransform: 'uppercase',
+                marginBottom: '8px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                userSelect: 'none',
+              }}
+            >
               <span className="flex h-2 w-2 relative">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#ffab40] opacity-75"></span>
-                <span className="relative inline-flex rounded-full h-2 w-2 bg-[#ffab40]"></span>
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#ffb74d] opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-[#ffb74d]"></span>
               </span>
-              🔥 FEATURED CONTRACT
+              ◈ FEATURED CONTRACT
             </div>
             
             <div
               onClick={() => onSelectMarket(featuredMarket)}
-              className={`group p-3.5 rounded border transition-all duration-200 cursor-pointer ${
-                selectedMarket?.id === featuredMarket.id
-                  ? 'bg-[#111820]/90 border-[#00d4ff] shadow-[0_0_12px_rgba(0,212,255,0.15)]'
-                  : 'bg-[#0f172a]/70 border-[#2e3b4e] hover:border-[#00d4ff]/60 hover:bg-[#1a2333]/50'
-              }`}
+              style={{
+                background: selectedMarket?.id === featuredMarket.id ? 'var(--accent-glow)' : 'var(--bg-card)',
+                border: selectedMarket?.id === featuredMarket.id ? '1px solid var(--accent)' : '1px solid var(--border)',
+                borderRadius: 'var(--radius-sm)',
+                padding: '12px',
+                cursor: 'pointer',
+                transition: 'all 0.2s',
+              }}
+              onMouseEnter={(e) => {
+                if (selectedMarket?.id !== featuredMarket.id) {
+                  e.currentTarget.style.borderColor = 'var(--accent-border)';
+                  e.currentTarget.style.background = 'rgba(255,255,255,0.015)';
+                }
+              }}
+              onMouseLeave={(e) => {
+                if (selectedMarket?.id !== featuredMarket.id) {
+                  e.currentTarget.style.borderColor = 'var(--border)';
+                  e.currentTarget.style.background = 'var(--bg-card)';
+                }
+              }}
             >
-              {/* Question Title - weight 500 */}
-              <h3 className={`text-xs font-medium leading-relaxed line-clamp-3 transition-colors ${
-                selectedMarket?.id === featuredMarket.id ? 'text-white' : 'text-slate-200 group-hover:text-white'
-              }`}>
+              <h3 
+                style={{
+                  fontSize: '12px',
+                  fontWeight: '500',
+                  color: 'var(--text-primary)',
+                  lineHeight: '1.4',
+                  fontFamily: 'var(--font-sans)',
+                  margin: 0,
+                }}
+                className="line-clamp-2"
+              >
                 {featuredMarket.question}
               </h3>
               
-              <div className="flex items-center justify-between mt-3">
-                {/* Trending Badge - weight 600 */}
-                <div className="px-2 py-0.5 rounded-sm bg-[#ffab40]/10 border border-[#ffab40]/20 text-[9px] font-mono text-[#ffab40] font-semibold uppercase tracking-widest">
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '12px' }}>
+                <div 
+                  style={{
+                    fontFamily: 'var(--font-mono)',
+                    fontSize: '9px',
+                    fontWeight: '600',
+                    padding: '2px 6px',
+                    borderRadius: '4px',
+                    background: 'var(--amber-glow)',
+                    border: '1px solid rgba(255, 183, 77, 0.2)',
+                    color: 'var(--amber)',
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.08em',
+                  }}
+                >
                   Trending
                 </div>
                 
-                <div className="flex items-center gap-3 text-[10px] font-mono">
-                  <div className="text-slate-500">
-                    <span className="font-medium">VOL:</span>{' '}
-                    <span className="text-slate-300 font-semibold">
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', fontSize: '10px', fontFamily: 'var(--font-mono)' }}>
+                  <div style={{ color: 'var(--text-muted)' }}>
+                    VOL:{' '}
+                    <span style={{ color: 'var(--text-secondary)', fontWeight: 600 }}>
                       {new Intl.NumberFormat('en-US', {
                         notation: 'compact',
                         compactDisplay: 'short',
@@ -207,8 +289,18 @@ export default function MarketScanner({
                     </span>
                   </div>
                   
-                  {/* Odds Badge - weight 600 */}
-                  <div className="px-2 py-0.5 rounded border border-emerald-500/20 bg-emerald-500/10 text-emerald-400 font-semibold text-[10px]">
+                  <div 
+                    style={{
+                      fontFamily: 'var(--font-mono)',
+                      fontSize: '10px',
+                      fontWeight: '600',
+                      padding: '2px 6px',
+                      borderRadius: '4px',
+                      background: 'rgba(0, 230, 118, 0.08)',
+                      border: '1px solid rgba(0, 230, 118, 0.2)',
+                      color: 'var(--green)',
+                    }}
+                  >
                     YES {Math.round(featuredMarket.yesPrice * 100)}%
                   </div>
                 </div>
@@ -230,10 +322,37 @@ export default function MarketScanner({
 
             {/* Load More Trigger */}
             {hasMore && (
-              <div className="p-4 flex justify-center border-t border-[#1e2a38] bg-[#0d1219]/10">
+              <div 
+                style={{
+                  padding: '16px',
+                  display: 'flex',
+                  justifyContent: 'center',
+                  background: 'transparent',
+                }}
+              >
                 <button
                   onClick={loadMore}
-                  className="px-4 py-2 rounded-sm border border-[#1e2a38] bg-[#111820] text-xs font-mono font-semibold text-slate-400 hover:text-white hover:bg-[#1e2a38] hover:border-[#00d4ff]/40 transition-all cursor-pointer"
+                  style={{
+                    padding: '8px 16px',
+                    background: 'transparent',
+                    border: '1px solid var(--border)',
+                    borderRadius: 'var(--radius-sm)',
+                    fontSize: '11px',
+                    color: 'var(--text-secondary)',
+                    fontFamily: 'var(--font-mono)',
+                    cursor: 'pointer',
+                    transition: 'all 0.15s',
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.borderColor = 'var(--accent-border)';
+                    e.currentTarget.style.color = 'var(--text-primary)';
+                    e.currentTarget.style.background = 'var(--accent-glow)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.borderColor = 'var(--border)';
+                    e.currentTarget.style.color = 'var(--text-secondary)';
+                    e.currentTarget.style.background = 'transparent';
+                  }}
                 >
                   Load More ({filteredMarkets.length - visibleCount} remaining)
                 </button>
@@ -241,7 +360,17 @@ export default function MarketScanner({
             )}
           </div>
         ) : (
-          <div className="p-8 text-center text-xs font-mono text-slate-600 font-semibold tracking-wider">
+          <div 
+            style={{
+              padding: '32px 16px',
+              textAlign: 'center',
+              fontSize: '10px',
+              fontFamily: 'var(--font-mono)',
+              color: 'var(--text-muted)',
+              fontWeight: '600',
+              letterSpacing: '0.12em',
+            }}
+          >
             NO ACTIVE PREDICTION CONTRACTS FOUND
           </div>
         )}

@@ -1,59 +1,44 @@
-import { NextResponse } from 'next/server';
-import { fetchHttp1 } from '../../../utils/polymarket';
+import { NextResponse } from "next/server";
+
+export const dynamic = "force-dynamic";
 
 export async function GET() {
   try {
-    // Zero cache live telemetry - strictly direct fetch from Polymarket CLOB API
-    const rawData = await fetchHttp1('https://clob.polymarket.com/markets');
-    const parsed = JSON.parse(rawData);
+    const res = await fetch("https://clob.polymarket.com/markets?limit=500", {
+      cache: "no-store",
+      headers: { "Accept": "application/json" },
+    });
 
-    // Standardize structure since CLOB API returns either a raw list or wrapped data object
-    const clobMarkets = Array.isArray(parsed) ? parsed : (parsed?.data ?? []);
+    if (!res.ok) throw new Error(`CLOB API error: ${res.status}`);
 
-    if (!Array.isArray(clobMarkets) || clobMarkets.length === 0) {
-      throw new Error('Polymarket CLOB API did not return standard markets data.');
-    }
+    const raw = await res.json();
+    const markets = raw.data ?? raw ?? [];
 
-    const priceMap: Record<string, { yes: number; no: number; vol: number }> = {};
-    
-    for (const m of clobMarkets) {
+    const priceMap: Record<string, {
+      yes: number;
+      no: number;
+      vol: number;
+      spread: number;
+      liquidity: number;
+      change1h: number;
+    }> = {};
+
+    for (const m of markets) {
       if (!m.condition_id) continue;
-
-      const yesTokenObj = m.tokens?.find((t: any) => t.outcome?.toLowerCase() === 'yes');
-      const noTokenObj = m.tokens?.find((t: any) => t.outcome?.toLowerCase() === 'no');
-
-      const yesPrice = yesTokenObj ? parseFloat(yesTokenObj.price) : parseFloat(m.tokens?.[0]?.price ?? 0.5);
-      const noPrice = noTokenObj ? parseFloat(noTokenObj.price) : parseFloat(m.tokens?.[1]?.price ?? 0.5);
-      const volume = parseFloat(m.volume ?? 0);
-
       priceMap[m.condition_id] = {
-        yes: yesPrice,
-        no: noPrice,
-        vol: volume,
+        yes:       parseFloat(m.tokens?.[0]?.price ?? "0.5"),
+        no:        parseFloat(m.tokens?.[1]?.price ?? "0.5"),
+        vol:       parseFloat(m.volume            ?? "0"),
+        spread:    parseFloat(m.spread            ?? "0"),
+        liquidity: parseFloat(m.liquidity         ?? "0"),
+        change1h:  0,
       };
     }
 
-    // Return the slim map with strict no-cache headers to enforce zero CDN/browser caching
-    return new NextResponse(JSON.stringify(priceMap), {
-      status: 200,
-      headers: {
-        'Content-Type': 'application/json',
-        'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
-        'Pragma': 'no-cache',
-        'Expires': '0',
-      },
-    });
+    return NextResponse.json(priceMap);
+
   } catch (err: any) {
-    console.error('Failed to fetch real-time prices from CLOB:', err);
-    return new NextResponse(
-      JSON.stringify({ error: err.message || 'Polymarket CLOB API unreachable' }),
-      {
-        status: 502,
-        headers: {
-          'Content-Type': 'application/json',
-          'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
-        },
-      }
-    );
+    console.error("Prices route error:", err);
+    return NextResponse.json({}, { status: 500 });
   }
 }
