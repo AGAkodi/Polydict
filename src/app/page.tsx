@@ -11,7 +11,6 @@ import GlobalChat from '../components/GlobalChat';
 import LeftNav from '../components/LeftNav';
 import CategoryTabs from '../components/CategoryTabs';
 import Watchlist from '../components/Watchlist';
-import PortfolioTracker from '../components/PortfolioTracker';
 import { MergedMarket } from '../utils/polymarket';
 import { formatTimestamp } from '../utils/helpers';
 
@@ -386,7 +385,12 @@ export default function Home() {
         </div>
         
         <div className="flex-1 overflow-hidden relative h-full flex items-center">
-          <div className="animate-marquee whitespace-nowrap flex items-center">
+          <div 
+            className="animate-marquee whitespace-nowrap flex items-center"
+            style={{
+              animationDuration: `${Math.max(30, enrichedMarkets.length * 8)}s`
+            }}
+          >
             {enrichedMarkets && enrichedMarkets.length > 0 ? (
               [...enrichedMarkets, ...enrichedMarkets].map((m: MergedMarket, idx: number) => {
                 const yesPct = Math.round(m.yesPrice * 100);
@@ -560,12 +564,6 @@ export default function Home() {
                     Return to Terminal
                   </button>
                 </div>
-              ) : activeTab === 'portfolio' ? (
-                <PortfolioTracker
-                  markets={enrichedMarkets}
-                  selectedMarket={selectedMarket}
-                  onSelectMarket={handleSelectMarket}
-                />
               ) : (
                 <PredictionCard
                   market={selectedMarket}
@@ -594,23 +592,7 @@ export default function Home() {
         />
       </div>
 
-      {/* Floating Action Button (FAB) for Global Chat Mode */}
-      <div className="fixed bottom-6 right-[390px] z-40">
-        <button
-          onClick={() => setIsGlobalChatOpen(true)}
-          className="flex items-center gap-2 px-4 py-2.5 rounded-full border border-[#00d4ff] bg-[#0d1219]/95 text-[#00d4ff] hover:bg-[#00d4ff]/25 hover:shadow-[0_0_15px_rgba(0,212,255,0.4)] active:scale-[0.97] transition-all cursor-pointer shadow-[0_0_10px_rgba(0,212,255,0.2)] font-mono text-xs font-bold shrink-0"
-          title="Open Global Analyst Chat"
-        >
-          <span className="relative flex h-2 w-2">
-            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#00d4ff] opacity-75"></span>
-            <span className="relative inline-flex rounded-full h-2 w-2 bg-[#00d4ff]"></span>
-          </span>
-          ALPHA·CAST CHAT
-        </button>
-      </div>
-
-      {/* Global Intel Chat Overlay Terminal */}
-      <GlobalChat isOpen={isGlobalChatOpen} onClose={() => setIsGlobalChatOpen(false)} />
+      <GlobalChat />
     </main>
   );
 }

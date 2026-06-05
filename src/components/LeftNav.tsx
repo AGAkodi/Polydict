@@ -16,9 +16,6 @@ export default function LeftNav({ activeTab, onTabChange, watchlistCount }: Left
   const navItems: NavItem[] = [
     { id: 'dashboard', icon: '⬡', label: 'Dashboard' },
     { id: 'watchlist', icon: '★', label: 'Watchlist' },
-    { id: 'portfolio', icon: '💼', label: 'Portfolio' },
-    { id: 'analyst', icon: '◈', label: 'AI Analyst' },
-    { id: 'chat', icon: '◎', label: 'AI Chat' },
     { id: 'settings', icon: '⊙', label: 'Settings' },
   ];
 

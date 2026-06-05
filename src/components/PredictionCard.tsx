@@ -1,7 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { MergedMarket } from '../utils/polymarket';
 import { formatVolume, getCountdown } from '../utils/helpers';
 import Sparkline from './Sparkline';
+import { toPng } from 'html-to-image';
 
 interface Signal {
   direction: 'bull' | 'bear' | 'neutral';
@@ -96,6 +97,35 @@ export default function PredictionCard({
   const [loading, setLoading] = useState(false);
   const [loadingPhase, setLoadingPhase] = useState<'grok' | 'claude' | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [exporting, setExporting] = useState(false);
+  const cardRef = useRef<HTMLDivElement>(null);
+
+  const exportAsImage = async () => {
+    if (!cardRef.current || !market) return;
+    setExporting(true);
+    try {
+      const dataUrl = await toPng(cardRef.current, {
+        cacheBust: true,
+        backgroundColor: "#0F172A",
+        pixelRatio: 2,
+        filter: (node) => {
+          // Exclude the export button itself from the image
+          if (node instanceof HTMLElement && node.dataset.exportExclude) return false;
+          return true;
+        },
+      });
+
+      // Download the image
+      const link = document.createElement("a");
+      link.download = `polydict-${market.slug ?? market.conditionId}-${Date.now()}.png`;
+      link.href = dataUrl;
+      link.click();
+    } catch (err) {
+      console.error("Export failed:", err);
+    } finally {
+      setExporting(false);
+    }
+  };
 
   // Kelly Bet Calculator Input State
   const [sizerBet, setSizerBet] = useState<string>("1000");
@@ -471,14 +501,37 @@ export default function PredictionCard({
 
   return (
     <div 
+      ref={cardRef}
       className="h-full flex flex-col relative select-text"
       style={{
         background: 'var(--bg-primary)',
         borderRight: '1px solid var(--border)',
       }}
     >
-      {/* Re-analyze button pill in top right */}
-      <div style={{ position: 'absolute', top: '14px', right: '16px', zIndex: 10 }}>
+      {/* Re-analyze & Export buttons pill in top right */}
+      <div data-export-exclude="true" style={{ position: 'absolute', top: '14px', right: '16px', zIndex: 10, display: 'flex', gap: '8px', alignItems: 'center' }}>
+        <button
+          data-export-exclude="true"
+          onClick={exportAsImage}
+          disabled={exporting}
+          style={{
+            fontFamily: "var(--font-mono)",
+            fontSize: "9px",
+            fontWeight: "600",
+            letterSpacing: "0.15em",
+            padding: "4px 8px",
+            background: "transparent",
+            border: "1px solid var(--border)",
+            borderRadius: "4px",
+            color: exporting ? "var(--text-muted)" : "var(--text-secondary)",
+            cursor: exporting ? "not-allowed" : "pointer",
+            transition: "all 0.15s",
+            textTransform: "uppercase",
+            outline: "none",
+          }}
+        >
+          {exporting ? "EXPORTING..." : "↓ EXPORT"}
+        </button>
         <button
           onClick={handleReAnalyze}
           disabled={isAnalyzing}
@@ -1598,6 +1651,33 @@ XAI_API_KEY=your-xai-key-here`}
         NFA — This is not financial advice. Prediction markets carry significant risk. <br />
         Always do your own research. DYOR as always.
       </div>
+      {exporting && (
+        <div style={{
+          padding: "10px 20px",
+          borderTop: "1px solid var(--border)",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          background: "#0F172A",
+        }}>
+          <span style={{
+            fontFamily: "var(--font-mono)",
+            fontSize: "10px",
+            fontWeight: "600",
+            color: "var(--accent)",
+            letterSpacing: "0.12em",
+          }}>
+            POLYDICT
+          </span>
+          <span style={{
+            fontFamily: "var(--font-mono)",
+            fontSize: "9px",
+            color: "var(--text-muted)",
+          }}>
+            polydict.app · NFA · DYOR
+          </span>
+        </div>
+      )}
     </div>
   );
 }
