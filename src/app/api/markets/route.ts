@@ -1,134 +1,143 @@
 import { NextRequest, NextResponse } from "next/server";
-import { classifyMarket } from "../../../utils/polymarket";
 
 export const dynamic = "force-dynamic";
 
 const GAMMA = "https://gamma-api.polymarket.com";
-const DATA  = "https://data-api.polymarket.com";
 const CLOB  = "https://clob.polymarket.com";
+
+const TAG_MAP: Record<string, string> = {
+  politics:  "Politics",
+  crypto:    "Crypto",
+  sports:    "Sports",
+  science:   "Science",
+  economics: "Economics",
+  economy:   "Economics",
+  culture:   "Culture",
+  world:     "World",
+  ai:        "AI",
+  elections: "Elections",
+  finance:   "Finance",
+};
 
 export async function GET(req: NextRequest) {
   const category = req.nextUrl.searchParams.get("category") ?? "all";
+  const tagValue = category !== "all" ? TAG_MAP[category.toLowerCase()] : null;
+  const tagParam = tagValue ? `&tag=${encodeURIComponent(tagValue)}` : "";
 
   try {
-    // 1. Gamma — metadata + tags
-    const tagParam = category !== "all" ? `&tag_slug=${category}` : "";
-    const gammaUrl = `${GAMMA}/markets?active=true&closed=false&limit=100&order=volume&ascending=false${tagParam}`;
+    // Step 1 — fetch events from Gamma Events API
+    const eventsUrl = `${GAMMA}/events?active=true&closed=false&limit=50&order=volume&ascending=false${tagParam}`;
+    const eventsRes = await fetch(eventsUrl, {
+      next: { revalidate: 86400, tags: ["markets"] },
+    });
 
-    // 2. CLOB — live orderbook prices
-    const clobUrl = `${CLOB}/markets?next_cursor=&limit=100`;
+    if (!eventsRes.ok) {
+      throw new Error(`Gamma Events API error: ${eventsRes.status}`);
+    }
 
-    // 3. Data API — volume history and sentiment
-    const dataUrl = `${DATA}/markets?limit=100&offset=0`;
+    const events = await eventsRes.json();
+    const eventsArray = Array.isArray(events) ? events : events.data ?? [];
 
-    const [gammaRes, clobRes, dataRes] = await Promise.allSettled([
-      fetch(gammaUrl, { cache: "no-store" }),
-      fetch(clobUrl,  { cache: "no-store" }),
-      fetch(dataUrl,  { cache: "no-store" }),
-    ]);
+    if (eventsArray.length === 0) {
+      console.log(`[Events API Category Empty] category: ${category}, url: ${eventsUrl}, raw response:`, JSON.stringify(events));
+    }
 
-    const gammaData = gammaRes.status === "fulfilled" && gammaRes.value.ok
-      ? await gammaRes.value.json() : [];
+    // Step 2 — fetch live prices from CLOB
+    const clobRes = await fetch(
+      `${CLOB}/sampling-markets?next_cursor=&limit=500`,
+      { cache: "no-store" }
+    );
 
-    const clobRaw = clobRes.status === "fulfilled" && clobRes.value.ok
-      ? await clobRes.value.json() : { data: [] };
+    const clobRaw = clobRes.ok ? await clobRes.json() : { data: [] };
     const clobData = clobRaw.data ?? clobRaw ?? [];
 
-    const dataRaw = dataRes.status === "fulfilled" && dataRes.value.ok
-      ? await dataRes.value.json() : [];
-    const dataData = Array.isArray(dataRaw) ? dataRaw : dataRaw.data ?? [];
-
-    // Build lookup maps
     const clobMap: Record<string, any> = {};
     for (const m of clobData) {
       if (m.condition_id) clobMap[m.condition_id] = m;
-      if (m.market_slug)  clobMap[m.market_slug]  = m;
     }
 
-    const dataMap: Record<string, any> = {};
-    for (const m of dataData) {
-      if (m.conditionId) dataMap[m.conditionId] = m;
-      if (m.slug)        dataMap[m.slug]        = m;
-    }
+    // Step 3 — flatten events into individual markets
+    const markets: any[] = [];
 
-    // Merge
-    const merged = (Array.isArray(gammaData) ? gammaData : []).map((m: any) => {
-      const clob = clobMap[m.conditionId] ?? clobMap[m.slug] ?? {};
-      const data = dataMap[m.conditionId] ?? dataMap[m.slug] ?? {};
+    for (const event of eventsArray) {
+      const eventMarkets = event.markets ?? [];
 
-      // YES/NO prices from CLOB orderbook
-      const yesPrice = parseFloat(
-        clob.tokens?.[0]?.price ??
-        m.outcomePrices?.[0] ??
-        "0.5"
-      );
-      const noPrice = parseFloat(
-        clob.tokens?.[1]?.price ??
-        m.outcomePrices?.[1] ??
-        String(1 - yesPrice)
-      );
+      for (const market of eventMarkets) {
+        const conditionId = market.conditionId ?? market.condition_id ?? market.id;
+        const clob = clobMap[conditionId] ?? {};
 
-      // Volume from Data API or Gamma fallback
-      const volume = parseFloat(
-        data.volume ?? clob.volume ?? m.volume ?? "0"
-      );
-
-      // Price change from Data API
-      const priceChange24h = parseFloat(data.priceChange24h ?? "0");
-      const priceChange1h  = parseFloat(data.priceChange1h  ?? "0");
-
-      // Liquidity from CLOB
-      const liquidity = parseFloat(clob.liquidity ?? "0");
-      const spread    = parseFloat(clob.spread    ?? "0");
-
-      // Market sentiment from Data API
-      const sentimentBull = parseFloat(data.liquidityBull ?? data.volumeBull ?? "0");
-      const sentimentBear = parseFloat(data.liquidityBear ?? data.volumeBear ?? "0");
-      const sentimentRatio = sentimentBull + sentimentBear > 0
-        ? sentimentBull / (sentimentBull + sentimentBear)
-        : 0.5;
-
-      return {
-        id:           m.id ?? m.conditionId,
-        conditionId:  m.conditionId ?? m.id,
-        slug:         m.slug,
-        question:     m.question,
-        description:  m.description ?? "",
-        category:     classifyMarket(m),
-        tags:         m.tags ?? [],
-        endDate:      m.endDate ?? m.end_date_iso,
-        yesPrice,
-        noPrice,
-        volume,
-        liquidity,
-        spread,
-        priceChange24h,
-        priceChange1h,
-        sentimentRatio,
-        sentimentBull,
-        sentimentBear,
-        active:       m.active ?? true,
-        closed:       m.closed ?? false,
-        image:        m.image ?? null,
-        clobTokenIds: clob.tokens?.map((t: any) => t.token_id) ?? [],
-      };
-    });
-
-    // Client-side category safety filter
-    const filtered = category === "all"
-      ? merged
-      : merged.filter((m: any) =>
-          m.category?.toLowerCase().includes(category.toLowerCase()) ||
-          m.tags?.some((t: any) =>
-            t.slug?.toLowerCase() === category.toLowerCase() ||
-            t.label?.toLowerCase().includes(category.toLowerCase())
-          )
+        // YES/NO prices — CLOB first, Gamma fallback
+        const yesPrice = parseFloat(
+          clob.tokens?.[0]?.price ??
+          market.outcomePrices?.[0] ??
+          "0.5"
         );
+        const noPrice = parseFloat(
+          clob.tokens?.[1]?.price ??
+          market.outcomePrices?.[1] ??
+          String(1 - yesPrice)
+        );
+
+        const volume = parseFloat(
+          clob.volume ?? market.volume ?? event.volume ?? "0"
+        );
+
+        const liquidity = parseFloat(clob.liquidity ?? market.liquidity ?? "0");
+        const spread    = parseFloat(clob.spread    ?? "0");
+
+        markets.push({
+          id:            conditionId,
+          conditionId,
+          slug:          market.slug ?? event.slug,
+          question:      market.question,
+          description:   market.description ?? event.description ?? "",
+          category:      event.category ?? event.tags?.[0]?.label ?? event.tags?.[0]?.name ?? tagValue ?? "General",
+          tags:          event.tags ?? market.tags ?? [],
+          endDate:       market.endDate ?? market.end_date_iso ?? event.endDate,
+          endDateIso:    market.end_date_iso ?? market.endDate ?? event.endDate,
+          yesPrice,
+          noPrice,
+          volume,
+          liquidity,
+          spread,
+          priceChange24h: parseFloat(market.priceChange24h ?? "0"),
+          priceChange1h:  parseFloat(market.priceChange1h  ?? "0"),
+          sentimentRatio: 0.5,
+          sentimentBull:  0,
+          sentimentBear:  0,
+          active:         market.active  ?? true,
+          closed:         market.closed  ?? false,
+          image:          market.image   ?? event.image ?? null,
+          clobTokenIds:   clob.tokens?.map((t: any) => t.token_id) ?? [],
+          eventTitle:     event.title,
+          eventImage:     event.image  ?? null,
+          eventSlug:      event.slug   ?? null,
+        });
+      }
+    }
+
+    // Step 4 — client-side category safety filter as backstop
+    const filtered = category === "all"
+      ? markets
+      : markets.filter((m: any) => {
+          const cat  = (m.category ?? "").toLowerCase();
+          const tags = (m.tags ?? []).map((t: any) =>
+            (t.label ?? t.slug ?? "").toLowerCase()
+          );
+          const target = category.toLowerCase();
+          return (
+            cat.includes(target) ||
+            tags.some((t: string) => t.includes(target))
+          );
+        });
+
+    // Sort by volume descending
+    filtered.sort((a: any, b: any) => b.volume - a.volume);
 
     return NextResponse.json(filtered);
 
   } catch (err: any) {
-    console.error("Markets route error:", err);
+    console.error("Markets route error:", err.message);
     return NextResponse.json([], { status: 500 });
   }
 }

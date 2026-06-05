@@ -62,6 +62,28 @@ export async function GET(req: NextRequest) {
       liquidity:   parseFloat(marketData?.liquidity      ?? "0"),
     };
 
+    // After existing Data API call, if marketData is null try Events API
+    if (!marketData && (conditionId || slug)) {
+      try {
+        const eventRes = await fetch(
+          `https://gamma-api.polymarket.com/events?market=${conditionId ?? slug}`,
+          { cache: "no-store" }
+        );
+        if (eventRes.ok) {
+          const eventData = await eventRes.json();
+          const event = Array.isArray(eventData) ? eventData[0] : eventData;
+          if (event) {
+            // Use event-level data as fallback
+            polymarketSentiment.bullVolume  = parseFloat(event.volumeNum ?? "0");
+            polymarketSentiment.totalVolume = parseFloat(event.volume    ?? "0");
+            polymarketSentiment.liquidity   = parseFloat(event.liquidity ?? "0");
+          }
+        }
+      } catch {
+        // silent fallback failure
+      }
+    }
+
     return NextResponse.json({
       trend,
       priceHistory: pricePoints,

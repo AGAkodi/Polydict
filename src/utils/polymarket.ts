@@ -41,31 +41,36 @@ export interface ClobMarket {
 
 export interface MergedMarket {
   id: string;
-  question: string;
   conditionId: string;
   slug: string;
+  question: string;
   description: string;
+  category: string;
+  tags: any[];
   endDate: string;
-  endDateIso: string;
-  outcomes: string[];
-  yesTokenId: string;
-  noTokenId: string;
+  endDateIso?: string;
   yesPrice: number;
   noPrice: number;
   volume: number;
   liquidity: number;
-  category: string;
-  tags?: any[];
-  image: string;
-  icon: string;
-  isClobMatched: boolean;
+  spread?: number;
   priceChange24h?: number;
   priceChange1h?: number;
   sentimentRatio?: number;
   sentimentBull?: number;
   sentimentBear?: number;
+  active?: boolean;
+  closed?: boolean;
+  image?: string | null;
   clobTokenIds?: string[];
-  spread?: number;
+  eventTitle?: string;
+  eventImage?: string;
+  eventSlug?: string;
+  outcomes?: string[];
+  yesTokenId?: string;
+  noTokenId?: string;
+  icon?: string;
+  isClobMatched?: boolean;
 }
 
 

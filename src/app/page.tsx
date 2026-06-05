@@ -10,6 +10,8 @@ import ChatPanel from '../components/ChatPanel';
 import GlobalChat from '../components/GlobalChat';
 import LeftNav from '../components/LeftNav';
 import CategoryTabs from '../components/CategoryTabs';
+import Watchlist from '../components/Watchlist';
+import PortfolioTracker from '../components/PortfolioTracker';
 import { MergedMarket } from '../utils/polymarket';
 import { formatTimestamp } from '../utils/helpers';
 
@@ -28,15 +30,19 @@ export default function Home() {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isGlobalChatOpen, setIsGlobalChatOpen] = useState(false);
   const [activeTab, setActiveTab] = useState('dashboard');
+  const [watchlist, setWatchlist] = useState<string[]>([]);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [analysisStatus, setAnalysisStatus] = useState('');
 
   // Setup SWR for markets metadata — refresh every 24h (86400000 ms)
-  const { data: markets = [], error: marketsError, mutate } = useSWR<MergedMarket[]>(
+  const { data: markets = [], error: marketsError, mutate: mutateMarkets } = useSWR<MergedMarket[]>(
     `/api/markets?category=${activeCategory}`,
     fetcher,
     {
       refreshInterval: 86400000,
       revalidateOnFocus: false,
       revalidateOnReconnect: true,
+      keepPreviousData: false,
       onSuccess: () => {
         // Update the timestamp on every successful fetch to show the active feed status
         setLastUpdated(formatTimestamp(new Date()));
@@ -81,10 +87,91 @@ export default function Home() {
     });
   }, [markets, livePrices]);
 
+  // Clear selected market and analysis when category changes
+  useEffect(() => {
+    setSelectedMarket(null);
+    setActiveAnalysis(null);
+  }, [activeCategory]);
+
   // Run cleanup once on page load (mount)
   useEffect(() => {
     clearStaleLocalStorageAnalyses();
+    const stored = localStorage.getItem('polydict_watchlist');
+    if (stored) {
+      try {
+        setWatchlist(JSON.parse(stored));
+      } catch (e) {
+        console.error('Failed to parse watchlist', e);
+      }
+    }
   }, []);
+
+  const handleToggleWatchlist = (id: string) => {
+    setWatchlist((prev) => {
+      const next = prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id];
+      localStorage.setItem('polydict_watchlist', JSON.stringify(next));
+      return next;
+    });
+  };
+
+  const handleReAnalyze = async () => {
+    if (!selectedMarket) return;
+    setIsAnalyzing(true);
+    setAnalysisStatus('PHASE 1: GROK SCRAPING...');
+    try {
+      // Bust local cache first
+      localStorage.removeItem(`analysis_${selectedMarket.id}`);
+
+      const signalsRes = await fetch('/api/signals', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ market: selectedMarket }),
+      });
+
+      if (!signalsRes.ok) {
+        throw new Error('Grok signal scraper endpoint failed');
+      }
+
+      const signalsData = await signalsRes.json();
+
+      setAnalysisStatus('PHASE 2: CLAUDE REASONING...');
+      const analyzeRes = await fetch('/api/analyze', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ market: selectedMarket, signals: signalsData }),
+      });
+
+      if (!analyzeRes.ok) {
+        throw new Error('Claude analysis core failed');
+      }
+
+      const analyzeData = await analyzeRes.json();
+      const finalResult = {
+        ...analyzeData,
+        grokSignals: signalsData,
+      };
+
+      // Save to localStorage
+      localStorage.setItem(
+        `analysis_${selectedMarket.id}`,
+        JSON.stringify({
+          timestamp: Date.now(),
+          analyzedAtPrice: selectedMarket.yesPrice,
+          data: finalResult,
+        })
+      );
+
+      // Refresh SWR/local state
+      setActiveAnalysis(finalResult);
+      setReanalyzeCount((prev) => prev + 1);
+    } catch (err: any) {
+      console.error('Error re-analyzing market:', err);
+      alert(err.message || 'Failed to complete two-phase pipeline analysis');
+    } finally {
+      setIsAnalyzing(false);
+      setAnalysisStatus('');
+    }
+  };
 
   // Auto-select the featured prediction of the day (highest volume/trending) when the list loads
   useEffect(() => {
@@ -123,7 +210,7 @@ export default function Home() {
       const data = await res.json();
 
       // Bust the client-side SWR cache immediately with fresh data
-      mutate(data.markets, false);
+      mutateMarkets();
       mutatePrices(); // Also trigger live prices refresh immediately
       setLastUpdated(formatTimestamp(new Date()));
 
@@ -131,7 +218,7 @@ export default function Home() {
       clearStaleLocalStorageAnalyses();
 
       // If the currently selected market is still in the refreshed list, maintain selection
-      if (selectedMarket) {
+      if (selectedMarket && data.markets) {
         const freshSelected = data.markets.find((m: MergedMarket) => m.id === selectedMarket.id);
         if (freshSelected) {
           setSelectedMarket(freshSelected);
@@ -194,17 +281,38 @@ export default function Home() {
         padding: '0 20px',
         flexShrink: 0,
       }}>
-        {/* Left side: Logo — pulsing green dot + POLYDICT */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <span className="relative flex h-2 w-2">
-            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#00e676] opacity-75"></span>
-            <span className="relative inline-flex rounded-full h-2 w-2 bg-[#00e676]"></span>
-          </span>
+        {/* Left side: Logo — Custom Logo + POLYDICT */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <div style={{
+            position: 'relative',
+            width: '26px',
+            height: '26px',
+            borderRadius: '6px',
+            overflow: 'hidden',
+            border: '1px solid var(--accent-border)',
+            boxShadow: '0 0 8px rgba(0, 209, 255, 0.2)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            background: '#000',
+          }}>
+            <img 
+              src="/logo.jpg" 
+              alt="PolyDict Logo" 
+              style={{
+                width: '100%',
+                height: '100%',
+                objectFit: 'cover',
+              }} 
+            />
+          </div>
           <span className="font-mono" style={{
-            fontSize: '13px',
-            fontWeight: 600,
+            fontSize: '14px',
+            fontWeight: 700,
             letterSpacing: '0.12em',
-            color: 'var(--accent)',
+            background: 'linear-gradient(90deg, #00D1FF 0%, #00E676 100%)',
+            WebkitBackgroundClip: 'text',
+            WebkitTextFillColor: 'transparent',
           }}>
             POLYDICT
           </span>
@@ -321,6 +429,7 @@ export default function Home() {
               setTimeout(() => setActiveTab('dashboard'), 200);
             }
           }} 
+          watchlistCount={watchlist.length}
         />
 
         {/* CENTER PANEL (Primary Workspace) */}
@@ -354,18 +463,30 @@ export default function Home() {
                 flexDirection: 'column',
               }}
             >
-              <MarketScanner
-                markets={enrichedMarkets}
-                selectedMarket={selectedMarket}
-                onSelectMarket={handleSelectMarket}
-                activeCategory={activeCategory}
-                onSelectCategory={setActiveCategory}
-                lastUpdated={lastUpdated}
-                isRefreshing={isRefreshing}
-                onRefresh={handleManualRefresh}
-                pricesError={!!pricesError}
-                hideHeaderAndTabs={true}
-              />
+              {activeTab === 'watchlist' ? (
+                <Watchlist
+                  markets={enrichedMarkets}
+                  watchlist={watchlist}
+                  selectedMarket={selectedMarket}
+                  onSelectMarket={handleSelectMarket}
+                  onToggleWatchlist={handleToggleWatchlist}
+                />
+              ) : (
+                <MarketScanner
+                  markets={enrichedMarkets}
+                  selectedMarket={selectedMarket}
+                  onSelectMarket={handleSelectMarket}
+                  activeCategory={activeCategory}
+                  onSelectCategory={setActiveCategory}
+                  lastUpdated={lastUpdated}
+                  isRefreshing={isRefreshing}
+                  onRefresh={handleManualRefresh}
+                  pricesError={!!pricesError}
+                  hideHeaderAndTabs={true}
+                  watchlist={watchlist}
+                  onToggleWatchlist={handleToggleWatchlist}
+                />
+              )}
             </div>
 
             {/* Right Column - Prediction details (flex-1) */}
@@ -439,6 +560,12 @@ export default function Home() {
                     Return to Terminal
                   </button>
                 </div>
+              ) : activeTab === 'portfolio' ? (
+                <PortfolioTracker
+                  markets={enrichedMarkets}
+                  selectedMarket={selectedMarket}
+                  onSelectMarket={handleSelectMarket}
+                />
               ) : (
                 <PredictionCard
                   market={selectedMarket}
@@ -448,6 +575,9 @@ export default function Home() {
                   triggerReanalyzeCount={reanalyzeCount}
                   onAskAI={() => setChatFocusTrigger((prev) => prev + 1)}
                   marketSentiment={marketSentiment}
+                  reAnalyze={handleReAnalyze}
+                  isAnalyzing={isAnalyzing}
+                  analysisStatus={analysisStatus}
                 />
               )}
             </div>

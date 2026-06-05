@@ -14,6 +14,8 @@ interface MarketScannerProps {
   onRefresh: () => void;
   pricesError?: boolean;
   hideHeaderAndTabs?: boolean;
+  watchlist: string[];
+  onToggleWatchlist: (id: string) => void;
 }
 
 const ITEMS_PER_PAGE = 15;
@@ -29,6 +31,8 @@ export default function MarketScanner({
   onRefresh,
   pricesError,
   hideHeaderAndTabs = false,
+  watchlist,
+  onToggleWatchlist,
 }: MarketScannerProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [visibleCount, setVisibleCount] = useState(ITEMS_PER_PAGE);
@@ -244,19 +248,44 @@ export default function MarketScanner({
                 }
               }}
             >
-              <h3 
-                style={{
-                  fontSize: '12px',
-                  fontWeight: '500',
-                  color: 'var(--text-primary)',
-                  lineHeight: '1.4',
-                  fontFamily: 'var(--font-sans)',
-                  margin: 0,
-                }}
-                className="line-clamp-2"
-              >
-                {featuredMarket.question}
-              </h3>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '8px' }}>
+                <h3 
+                  style={{
+                    fontSize: '12px',
+                    fontWeight: '500',
+                    color: 'var(--text-primary)',
+                    lineHeight: '1.4',
+                    fontFamily: 'var(--font-sans)',
+                    margin: 0,
+                    flex: 1,
+                  }}
+                  className="line-clamp-2"
+                >
+                  {featuredMarket.question}
+                </h3>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onToggleWatchlist(featuredMarket.id);
+                  }}
+                  style={{
+                    background: 'transparent',
+                    border: 'none',
+                    color: watchlist.includes(featuredMarket.id) ? 'var(--accent)' : 'var(--text-muted)',
+                    cursor: 'pointer',
+                    fontSize: '14px',
+                    padding: '2px 4px',
+                    outline: 'none',
+                    fontFamily: 'var(--font-sans)',
+                    transition: 'color 0.15s',
+                    flexShrink: 0,
+                  }}
+                  onMouseEnter={(e) => e.currentTarget.style.color = 'var(--accent)'}
+                  onMouseLeave={(e) => e.currentTarget.style.color = watchlist.includes(featuredMarket.id) ? 'var(--accent)' : 'var(--text-muted)'}
+                >
+                  {watchlist.includes(featuredMarket.id) ? '◈' : '◇'}
+                </button>
+              </div>
               
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '12px' }}>
                 <div 
@@ -317,6 +346,8 @@ export default function MarketScanner({
                 market={market}
                 isSelected={selectedMarket?.id === market.id}
                 onSelect={() => onSelectMarket(market)}
+                isWatched={watchlist.includes(market.id)}
+                onToggleWatchlist={onToggleWatchlist}
               />
             ))}
 

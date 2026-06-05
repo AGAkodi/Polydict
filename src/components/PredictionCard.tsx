@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { MergedMarket } from '../utils/polymarket';
 import { formatVolume, getCountdown } from '../utils/helpers';
+import Sparkline from './Sparkline';
 
 interface Signal {
   direction: 'bull' | 'bear' | 'neutral';
@@ -34,6 +35,9 @@ interface PredictionCardProps {
   triggerReanalyzeCount: number;
   onAskAI?: () => void;
   marketSentiment?: any;
+  reAnalyze?: () => Promise<void>;
+  isAnalyzing?: boolean;
+  analysisStatus?: string;
 }
 
 const STORAGE_KEY_PREFIX = 'analysis_';
@@ -82,7 +86,10 @@ export default function PredictionCard({
   onAnalysisLoaded, 
   triggerReanalyzeCount,
   onAskAI,
-  marketSentiment
+  marketSentiment,
+  reAnalyze: propReAnalyze,
+  isAnalyzing = false,
+  analysisStatus = "",
 }: PredictionCardProps) {
   const [analysis, setAnalysis] = useState<AnalysisResult | null>(null);
   const [analyzedAtPrice, setAnalyzedAtPrice] = useState<number | null>(null);
@@ -111,6 +118,15 @@ export default function PredictionCard({
   const [sentimentLoading, setSentimentLoading] = useState(false);
   const [sentimentError, setSentimentError] = useState(false);
   const [lastUpdatedSeconds, setLastUpdatedSeconds] = useState(0);
+  const [pollIntervalMs, setPollIntervalMs] = useState(30000);
+
+  useEffect(() => {
+    if (sentimentData?.degraded) {
+      setPollIntervalMs(15000);
+    } else {
+      setPollIntervalMs(30000);
+    }
+  }, [sentimentData?.degraded]);
 
   const currentPrice = market ? (livePrices?.[market.conditionId]?.yes ?? market.yesPrice) : null;
   const livePriceData = market ? livePrices?.[market.conditionId] : null;
@@ -217,10 +233,10 @@ export default function PredictionCard({
     // Run immediately on selection
     fetchSentiment();
 
-    // Poll every 30 seconds
+    // Poll according to active interval
     const pollInterval = setInterval(() => {
       fetchSentiment();
-    }, 30000);
+    }, pollIntervalMs);
 
     // Update timer every second
     const timerInterval = setInterval(() => {
@@ -231,7 +247,7 @@ export default function PredictionCard({
       clearInterval(pollInterval);
       clearInterval(timerInterval);
     };
-  }, [market]);
+  }, [market, pollIntervalMs]);
 
   const runAnalysis = async (targetMarket: MergedMarket, forceRefetch = false) => {
     setLoading(true);
@@ -392,8 +408,12 @@ export default function PredictionCard({
     ? Math.abs(currentPriceNum - analyzedAtPrice)
     : 0;
 
-  const reAnalyze = () => {
-    runAnalysis(market, true);
+  const handleReAnalyze = () => {
+    if (propReAnalyze) {
+      propReAnalyze();
+    } else {
+      runAnalysis(market!, true);
+    }
   };
 
   const yesOdds = Math.round(currentPriceNum * 100);
@@ -457,8 +477,56 @@ export default function PredictionCard({
         borderRight: '1px solid var(--border)',
       }}
     >
+      {/* Re-analyze button pill in top right */}
+      <div style={{ position: 'absolute', top: '14px', right: '16px', zIndex: 10 }}>
+        <button
+          onClick={handleReAnalyze}
+          disabled={isAnalyzing}
+          style={{
+            fontFamily: 'var(--font-mono)',
+            fontSize: '9px',
+            fontWeight: '600',
+            letterSpacing: '0.08em',
+            padding: '4px 10px',
+            borderRadius: '12px',
+            border: '1px solid var(--accent-border)',
+            background: 'transparent',
+            color: 'var(--accent)',
+            cursor: isAnalyzing ? 'not-allowed' : 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '6px',
+            transition: 'all 0.15s ease-in-out',
+            outline: 'none',
+          }}
+          onMouseEnter={(e) => {
+            if (!isAnalyzing) {
+              e.currentTarget.style.background = 'var(--accent-glow)';
+              e.currentTarget.style.borderColor = 'var(--accent)';
+            }
+          }}
+          onMouseLeave={(e) => {
+            if (!isAnalyzing) {
+              e.currentTarget.style.background = 'transparent';
+              e.currentTarget.style.borderColor = 'var(--accent-border)';
+            }
+          }}
+        >
+          {isAnalyzing ? (
+            <>
+              <span 
+                className="animate-spin inline-block w-2 h-2 border border-transparent border-t-current rounded-full" 
+                style={{ borderWidth: '1.5px', borderTopColor: 'var(--accent)', marginRight: '2px' }} 
+              />
+              {analysisStatus || 'ANALYZING...'}
+            </>
+          ) : (
+            'RE-ANALYZE'
+          )}
+        </button>
+      </div>
       {/* Scanning loading overlay */}
-      {loading && (
+      {(loading || isAnalyzing) && (
         <div 
           className="absolute inset-0 z-50 flex flex-col items-center justify-center p-8 space-y-6 select-none font-mono"
           style={{
@@ -473,9 +541,9 @@ export default function PredictionCard({
                 height: '64px',
                 borderRadius: '50%',
                 border: '2px solid transparent',
-                borderTopColor: loadingPhase === 'grok' ? 'var(--amber)' : 'var(--accent)',
+                borderTopColor: (loadingPhase === 'grok' || analysisStatus.includes('Grok')) ? 'var(--amber)' : 'var(--accent)',
                 animation: 'spin 1s linear infinite',
-                boxShadow: loadingPhase === 'grok' 
+                boxShadow: (loadingPhase === 'grok' || analysisStatus.includes('Grok'))
                   ? '0 0 15px rgba(255, 183, 77, 0.2)' 
                   : '0 0 15px rgba(0, 209, 255, 0.2)',
               }}
@@ -488,7 +556,7 @@ export default function PredictionCard({
                 color: 'var(--text-secondary)',
               }}
             >
-              {loadingPhase === 'grok' ? 'X-AI' : 'CLAUDE'}
+              {(loadingPhase === 'grok' || analysisStatus.includes('Grok')) ? 'X-AI' : 'CLAUDE'}
             </div>
           </div>
           <div className="text-center max-w-xs space-y-3">
@@ -496,13 +564,13 @@ export default function PredictionCard({
               style={{
                 fontSize: '12px',
                 fontWeight: 'bold',
-                color: loadingPhase === 'grok' ? 'var(--amber)' : 'var(--accent)',
+                color: (loadingPhase === 'grok' || analysisStatus.includes('Grok')) ? 'var(--amber)' : 'var(--accent)',
                 textTransform: 'uppercase',
                 letterSpacing: '0.1em',
               }}
               className="animate-pulse"
             >
-              {loadingPhase === 'grok' ? 'PHASE 1: SOCIAL SIGNAL SCRAPE' : 'PHASE 2: DEEP FORECAST ANALYSIS'}
+              {(loadingPhase === 'grok' || analysisStatus.includes('Grok')) ? 'PHASE 1: SOCIAL SIGNAL SCRAPE' : 'PHASE 2: DEEP FORECAST ANALYSIS'}
             </div>
             <p 
               style={{
@@ -517,8 +585,8 @@ export default function PredictionCard({
                 margin: 0,
               }}
             >
-              {loadingPhase === 'grok' 
-                ? 'Fetching X/Twitter sentiment signals via Grok 4.1 Fast with live web & social scraping enabled...'
+              {(loadingPhase === 'grok' || analysisStatus.includes('Grok'))
+                ? 'Fetching X/Twitter sentiment signals via Grok 3 Fast with live web & social scraping enabled...'
                 : 'Scraped signals injected. Executing Claude 3.5 Sonnet reasoning core with mathematical validation constraints...'
               }
             </p>
@@ -791,7 +859,7 @@ XAI_API_KEY=your-xai-key-here`}
                   </span>
                 </div>
                 <button 
-                  onClick={reAnalyze}
+                  onClick={handleReAnalyze}
                   style={{
                     padding: '4px 8px',
                     fontSize: '9px',
@@ -1063,6 +1131,11 @@ XAI_API_KEY=your-xai-key-here`}
                     </span>
                   )}
                 </div>
+                {marketSentiment?.priceHistory && marketSentiment.priceHistory.length >= 2 && (
+                  <div style={{ marginTop: '14px', paddingTop: '12px', borderTop: '1px dashed var(--border)', display: 'flex', justifyContent: 'center' }}>
+                    <Sparkline data={marketSentiment.priceHistory} width={300} height={50} />
+                  </div>
+                )}
               </div>
             )}
 
@@ -1395,13 +1468,9 @@ XAI_API_KEY=your-xai-key-here`}
                   />
                   CONNECTING LIVE GROK SOCIAL FEED...
                 </div>
-              ) : sentimentError ? (
+              ) : sentimentError || (sentimentData && sentimentData.degraded) ? (
                 <div style={{ fontSize: '11px', fontWeight: 'bold', color: 'var(--amber)', background: 'var(--amber-glow)', border: '1px solid rgba(255, 183, 77, 0.2)', borderRadius: 'var(--radius-sm)', padding: '12px', textAlign: 'center' }} className="animate-pulse">
-                  Sentiment feed offline
-                </div>
-              ) : sentimentData && sentimentData.degraded ? (
-                <div style={{ fontSize: '11px', fontWeight: 'bold', color: 'var(--amber)', background: 'var(--amber-glow)', border: '1px solid rgba(255, 183, 77, 0.2)', borderRadius: 'var(--radius-sm)', padding: '12px', textAlign: 'center' }} className="animate-pulse">
-                  Live feed loading...
+                  Fetching live feed...
                 </div>
               ) : sentimentData ? (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }} className="animate-fade-in text-xs">

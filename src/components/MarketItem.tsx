@@ -6,9 +6,17 @@ interface MarketItemProps {
   market: MergedMarket;
   isSelected: boolean;
   onSelect: () => void;
+  isWatched: boolean;
+  onToggleWatchlist: (id: string) => void;
 }
 
-export default function MarketItem({ market, isSelected, onSelect }: MarketItemProps) {
+export default function MarketItem({
+  market,
+  isSelected,
+  onSelect,
+  isWatched,
+  onToggleWatchlist,
+}: MarketItemProps) {
   const yesPricePct = Math.round(market.yesPrice * 100);
   const countdown = getCountdown(market.endDateIso || market.endDate);
 
@@ -46,21 +54,79 @@ export default function MarketItem({ market, isSelected, onSelect }: MarketItemP
         if (!isSelected) e.currentTarget.style.background = 'transparent';
       }}
     >
-      {/* Market question text */}
-      <h4 
-        style={{
-          fontSize: '12px',
-          fontWeight: '500',
-          color: 'var(--text-primary)',
-          lineHeight: '1.4',
-          marginBottom: '6px',
-          fontFamily: 'var(--font-sans)',
-          margin: '0 0 6px 0',
-        }}
-        className="line-clamp-2"
-      >
-        {market.question}
-      </h4>
+      <div style={{ display: 'flex', gap: '10px', alignItems: 'flex-start' }}>
+        {market.eventImage && (
+          <img
+            src={market.eventImage}
+            alt=""
+            style={{
+              width: '32px',
+              height: '32px',
+              borderRadius: '6px',
+              objectFit: 'cover',
+              flexShrink: 0,
+              border: '1px solid var(--border)',
+            }}
+          />
+        )}
+        <div style={{ flex: 1, minWidth: 0 }}>
+          {market.eventTitle && (
+            <p style={{
+              fontFamily: 'var(--font-mono)',
+              fontSize: '9px',
+              fontWeight: '600',
+              letterSpacing: '0.1em',
+              color: 'var(--text-muted)',
+              textTransform: 'uppercase',
+              marginBottom: '3px',
+              marginTop: 0,
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              whiteSpace: 'nowrap',
+            }}>
+              {market.eventTitle}
+            </p>
+          )}
+
+          <h4 
+            style={{
+              fontSize: '12px',
+              fontWeight: '500',
+              color: 'var(--text-primary)',
+              lineHeight: '1.4',
+              marginBottom: '6px',
+              fontFamily: 'var(--font-sans)',
+              margin: '0 0 6px 0',
+            }}
+            className="line-clamp-2"
+          >
+            {market.question}
+          </h4>
+        </div>
+        {/* Toggle Bookmark Button */}
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            onToggleWatchlist(market.id);
+          }}
+          style={{
+            background: 'transparent',
+            border: 'none',
+            color: isWatched ? 'var(--accent)' : 'var(--text-muted)',
+            cursor: 'pointer',
+            fontSize: '14px',
+            padding: '2px 4px',
+            outline: 'none',
+            fontFamily: 'var(--font-sans)',
+            transition: 'color 0.15s',
+            flexShrink: 0,
+          }}
+          onMouseEnter={(e) => e.currentTarget.style.color = 'var(--accent)'}
+          onMouseLeave={(e) => e.currentTarget.style.color = isWatched ? 'var(--accent)' : 'var(--text-muted)'}
+        >
+          {isWatched ? '◈' : '◇'}
+        </button>
+      </div>
 
       {/* Odds pill and Metadata Row */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '4px' }}>

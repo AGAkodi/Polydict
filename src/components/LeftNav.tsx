@@ -9,11 +9,14 @@ interface NavItem {
 interface LeftNavProps {
   activeTab: string;
   onTabChange: (id: string) => void;
+  watchlistCount: number;
 }
 
-export default function LeftNav({ activeTab, onTabChange }: LeftNavProps) {
+export default function LeftNav({ activeTab, onTabChange, watchlistCount }: LeftNavProps) {
   const navItems: NavItem[] = [
     { id: 'dashboard', icon: '⬡', label: 'Dashboard' },
+    { id: 'watchlist', icon: '★', label: 'Watchlist' },
+    { id: 'portfolio', icon: '💼', label: 'Portfolio' },
     { id: 'analyst', icon: '◈', label: 'AI Analyst' },
     { id: 'chat', icon: '◎', label: 'AI Chat' },
     { id: 'settings', icon: '⊙', label: 'Settings' },
@@ -33,7 +36,7 @@ export default function LeftNav({ activeTab, onTabChange }: LeftNavProps) {
       gap: '8px',
       flexShrink: 0,
     }}>
-      {/* Logo at top — pulsing cyan dot + "PD" text */}
+      {/* Logo at top — Custom Logo + "PD" text */}
       <div style={{
         display: 'flex',
         flexDirection: 'column',
@@ -42,32 +45,35 @@ export default function LeftNav({ activeTab, onTabChange }: LeftNavProps) {
         marginBottom: '24px',
         position: 'relative',
       }}>
-        <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <span style={{
-            position: 'absolute',
-            display: 'inline-flex',
-            height: '12px',
-            width: '12px',
-            borderRadius: '50%',
-            background: 'var(--accent)',
-            opacity: 0.6,
-            animation: 'ping 1.5s cubic-bezier(0, 0, 0.2, 1) infinite',
-          }} />
-          <span style={{
-            position: 'relative',
-            display: 'inline-flex',
-            borderRadius: '50%',
-            height: '8px',
-            width: '8px',
-            background: 'var(--accent)',
-          }} />
+        <div style={{
+          position: 'relative',
+          width: '32px',
+          height: '32px',
+          borderRadius: '6px',
+          overflow: 'hidden',
+          border: '1px solid var(--accent-border)',
+          boxShadow: '0 0 10px rgba(0, 209, 255, 0.15)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          background: '#000',
+        }}>
+          <img 
+            src="/logo.jpg" 
+            alt="PolyDict Logo" 
+            style={{
+              width: '100%',
+              height: '100%',
+              objectFit: 'cover',
+            }} 
+          />
         </div>
         <span className="font-mono" style={{
           fontSize: '11px',
           fontWeight: 600,
           letterSpacing: '0.05em',
           color: 'var(--text-primary)',
-          marginTop: '6px',
+          marginTop: '4px',
         }}>
           PD
         </span>
@@ -102,6 +108,7 @@ export default function LeftNav({ activeTab, onTabChange }: LeftNavProps) {
                 padding: 0,
                 outline: 'none',
                 transition: 'all 0.15s ease-in-out',
+                position: 'relative',
               }}
               onMouseEnter={(e) => {
                 if (!isActive) e.currentTarget.style.background = 'rgba(255,255,255,0.04)';
@@ -118,6 +125,27 @@ export default function LeftNav({ activeTab, onTabChange }: LeftNavProps) {
               }}>
                 {item.icon}
               </span>
+              {item.id === 'watchlist' && watchlistCount > 0 && (
+                <span style={{
+                  position: 'absolute',
+                  top: '6px',
+                  right: '12px',
+                  background: 'var(--accent)',
+                  color: 'var(--bg-primary)',
+                  fontSize: '9px',
+                  fontWeight: 'bold',
+                  borderRadius: '50%',
+                  width: '14px',
+                  height: '14px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontFamily: 'var(--font-mono)',
+                  boxShadow: '0 0 6px var(--accent)',
+                }}>
+                  {watchlistCount}
+                </span>
+              )}
             </button>
           );
         })}
