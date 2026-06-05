@@ -32,6 +32,7 @@ export default function Home() {
   const [watchlist, setWatchlist] = useState<string[]>([]);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [analysisStatus, setAnalysisStatus] = useState('');
+  const [mobileActivePanel, setMobileActivePanel] = useState<'scanner' | 'details' | 'chat'>('scanner');
 
   // Setup SWR for markets metadata — refresh every 24h (86400000 ms)
   const { data: markets = [], error: marketsError, mutate: mutateMarkets } = useSWR<MergedMarket[]>(
@@ -261,6 +262,7 @@ export default function Home() {
   const handleSelectMarket = (market: MergedMarket) => {
     setSelectedMarket(market);
     setActiveAnalysis(null);
+    setMobileActivePanel('details');
   };
 
   const handleAnalysisLoaded = (analysis: any) => {
@@ -318,7 +320,7 @@ export default function Home() {
         </div>
 
         {/* Center: PREDICTION INTELLIGENCE TERMINAL */}
-        <div className="font-mono" style={{
+        <div className="font-mono hidden md:block" style={{
           fontSize: '10px',
           color: 'var(--text-muted)',
           letterSpacing: '0.2em',
@@ -328,7 +330,7 @@ export default function Home() {
 
         {/* Right side: Last updated + Manual Refresh */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-          <span className="font-mono" style={{
+          <span className="font-mono hidden sm:inline" style={{
             fontSize: '10px',
             color: 'var(--text-muted)',
           }}>
@@ -369,7 +371,7 @@ export default function Home() {
             <svg className={`h-3 w-3 ${isRefreshing ? 'animate-spin' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24" style={{ width: '12px', height: '12px' }}>
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M4 4v5h.582m15.356 2A8.001 8.001 0 1121.21 7.89M21 3v5h-5" />
             </svg>
-            {isRefreshing ? 'REFRESHING' : 'REFRESH'}
+            <span className="hidden sm:inline">{isRefreshing ? 'REFRESHING' : 'REFRESH'}</span>
           </button>
         </div>
       </div>
@@ -413,37 +415,34 @@ export default function Home() {
         </div>
       </div>
 
-      {/* Main Panel Content Container - Three Panel Desktop */}
+      {/* Main Panel Content Container - Responsive Layout */}
       <div 
+        className="flex flex-1 overflow-hidden pb-14 lg:pb-0"
         style={{
-          display: 'flex',
-          flex: 1,
           background: 'var(--bg-primary)',
-          overflow: 'hidden',
         }}
       >
-        {/* LEFT SIDEBAR (Width 64px, collapsed, icons only) */}
-        <LeftNav 
-          activeTab={activeTab} 
-          onTabChange={(tabId) => {
-            setActiveTab(tabId);
-            if (tabId === 'chat') {
-              setIsGlobalChatOpen(true);
-              // Auto-reset activeTab to dashboard so dashboard remains active when chat overlay closes
-              setTimeout(() => setActiveTab('dashboard'), 200);
-            }
-          }} 
-          watchlistCount={watchlist.length}
-        />
+        {/* LEFT SIDEBAR (Width 64px, collapsed, icons only) - Hidden on Mobile */}
+        <div className="hidden lg:block h-full shrink-0">
+          <LeftNav 
+            activeTab={activeTab} 
+            onTabChange={(tabId) => {
+              setActiveTab(tabId);
+              if (tabId === 'chat') {
+                setIsGlobalChatOpen(true);
+                // Auto-reset activeTab to dashboard so dashboard remains active when chat overlay closes
+                setTimeout(() => setActiveTab('dashboard'), 200);
+              }
+            }} 
+            watchlistCount={watchlist.length}
+          />
+        </div>
 
         {/* CENTER PANEL (Primary Workspace) */}
         <div 
-          style={{
-            flex: 1,
-            display: 'flex',
-            flexDirection: 'column',
-            overflow: 'hidden',
-          }}
+          className={`flex-1 flex-col overflow-hidden ${
+            mobileActivePanel === 'chat' ? 'hidden lg:flex' : 'flex'
+          }`}
         >
           {/* Category Tabs Bar at top of Center Panel */}
           <CategoryTabs activeCategory={activeCategory} onSelectCategory={setActiveCategory} />
@@ -458,14 +457,9 @@ export default function Home() {
           >
             {/* Left Column - Market Scanner (Width 340px) */}
             <div 
-              style={{
-                width: '340px',
-                minWidth: '340px',
-                height: '100%',
-                borderRight: '1px solid var(--border)',
-                display: 'flex',
-                flexDirection: 'column',
-              }}
+              className={`flex-col h-full border-r border-[var(--border)] shrink-0 lg:flex lg:w-[340px] lg:min-w-[340px] ${
+                mobileActivePanel === 'scanner' ? 'flex w-full' : 'hidden'
+              }`}
             >
               {activeTab === 'watchlist' ? (
                 <Watchlist
@@ -495,13 +489,12 @@ export default function Home() {
 
             {/* Right Column - Prediction details (flex-1) */}
             <div 
+              className={`flex-col h-full overflow-y-auto no-scrollbar lg:flex lg:flex-1 ${
+                mobileActivePanel === 'details' ? 'flex w-full' : 'hidden'
+              }`}
               style={{
-                flex: 1,
-                height: '100%',
-                overflowY: 'auto',
                 background: 'var(--bg-primary)',
               }}
-              className="no-scrollbar"
             >
               {activeTab === 'settings' ? (
                 <div style={{
@@ -582,17 +575,98 @@ export default function Home() {
           </div>
         </div>
 
-        {/* RIGHT PANEL (AI Chat - Width 360px internally inside ChatPanel) */}
+        {/* RIGHT PANEL (AI Chat) */}
         <ChatPanel 
           market={selectedMarket} 
           analysis={activeAnalysis} 
           markets={enrichedMarkets} 
           chatFocusTrigger={chatFocusTrigger}
           marketSentiment={marketSentiment}
+          className={`lg:flex border-l border-[var(--border)] shrink-0 lg:w-[360px] lg:min-w-[360px] ${
+            mobileActivePanel === 'chat' ? 'flex w-full h-full' : 'hidden'
+          }`}
         />
       </div>
 
       <GlobalChat />
+
+      {/* Mobile Bottom Navigation Bar */}
+      <div className="lg:hidden fixed bottom-0 left-0 right-0 h-14 bg-[var(--bg-secondary)] border-t border-[var(--border)] flex items-center justify-around z-50">
+        <button 
+          onClick={() => {
+            setMobileActivePanel('scanner');
+            setActiveTab('dashboard');
+          }}
+          className="flex flex-col items-center justify-center gap-1 cursor-pointer outline-none bg-transparent border-none"
+          style={{ color: (mobileActivePanel === 'scanner' && activeTab === 'dashboard') ? 'var(--accent)' : 'var(--text-secondary)' }}
+        >
+          <span style={{ fontSize: '18px', lineHeight: 1 }}>⬡</span>
+          <span style={{ fontSize: '9px', fontFamily: 'var(--font-mono)', fontWeight: 'bold' }}>MARKETS</span>
+        </button>
+        <button 
+          onClick={() => {
+            setMobileActivePanel('scanner');
+            setActiveTab('watchlist');
+          }}
+          className="flex flex-col items-center justify-center gap-1 cursor-pointer outline-none bg-transparent border-none relative"
+          style={{ color: (mobileActivePanel === 'scanner' && activeTab === 'watchlist') ? 'var(--accent)' : 'var(--text-secondary)' }}
+        >
+          <span style={{ fontSize: '18px', lineHeight: 1 }}>★</span>
+          <span style={{ fontSize: '9px', fontFamily: 'var(--font-mono)', fontWeight: 'bold' }}>WATCHLIST</span>
+          {watchlist.length > 0 && (
+            <span style={{
+              position: 'absolute',
+              top: '2px',
+              right: '22px',
+              background: 'var(--accent)',
+              color: 'var(--bg-primary)',
+              fontSize: '8px',
+              fontWeight: 'bold',
+              borderRadius: '50%',
+              width: '12px',
+              height: '12px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontFamily: 'var(--font-mono)',
+            }}>
+              {watchlist.length}
+            </span>
+          )}
+        </button>
+        <button 
+          onClick={() => {
+            setMobileActivePanel('details');
+            if (activeTab === 'settings') setActiveTab('dashboard');
+          }}
+          className="flex flex-col items-center justify-center gap-1 cursor-pointer outline-none bg-transparent border-none"
+          style={{ color: (mobileActivePanel === 'details' && activeTab !== 'settings') ? 'var(--accent)' : 'var(--text-secondary)' }}
+        >
+          <span style={{ fontSize: '18px', lineHeight: 1 }}>◈</span>
+          <span style={{ fontSize: '9px', fontFamily: 'var(--font-mono)', fontWeight: 'bold' }}>ANALYSIS</span>
+        </button>
+        <button 
+          onClick={() => {
+            setMobileActivePanel('chat');
+          }}
+          className="flex flex-col items-center justify-center gap-1 cursor-pointer outline-none bg-transparent border-none"
+          style={{ color: (mobileActivePanel === 'chat') ? 'var(--accent)' : 'var(--text-secondary)' }}
+        >
+          <span style={{ fontSize: '18px', lineHeight: 1 }}>◎</span>
+          <span style={{ fontSize: '9px', fontFamily: 'var(--font-mono)', fontWeight: 'bold' }}>CHAT</span>
+        </button>
+        <button 
+          onClick={() => {
+            setMobileActivePanel('details');
+            setActiveTab('settings');
+          }}
+          className="flex flex-col items-center justify-center gap-1 cursor-pointer outline-none bg-transparent border-none"
+          style={{ color: (mobileActivePanel === 'details' && activeTab === 'settings') ? 'var(--accent)' : 'var(--text-secondary)' }}
+        >
+          <span style={{ fontSize: '18px', lineHeight: 1 }}>⊙</span>
+          <span style={{ fontSize: '9px', fontFamily: 'var(--font-mono)', fontWeight: 'bold' }}>SETTINGS</span>
+        </button>
+      </div>
     </main>
   );
 }

@@ -509,7 +509,10 @@ export default function PredictionCard({
       }}
     >
       {/* Re-analyze & Export buttons pill in top right */}
-      <div data-export-exclude="true" style={{ position: 'absolute', top: '14px', right: '16px', zIndex: 10, display: 'flex', gap: '8px', alignItems: 'center' }}>
+      <div 
+        data-export-exclude="true" 
+        className="z-10 flex gap-2 items-center flex-wrap p-4 md:p-0 border-b border-[var(--border)] md:border-b-0 w-full md:w-auto justify-end md:absolute md:top-[14px] md:right-[16px]"
+      >
         <button
           data-export-exclude="true"
           onClick={exportAsImage}
@@ -1032,7 +1035,10 @@ XAI_API_KEY=your-xai-key-here`}
                 </div>
 
                 {/* Side-by-side Progress Bars */}
-                <div style={{ display: 'flex', gap: '16px', alignItems: 'center', borderTop: '1px solid var(--border)', paddingTop: '16px' }}>
+                <div 
+                  className="flex flex-col sm:flex-row gap-4 sm:gap-6 items-stretch sm:items-center"
+                  style={{ borderTop: '1px solid var(--border)', paddingTop: '16px' }}
+                >
                   <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '6px' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', fontFamily: 'var(--font-mono)', fontSize: '10px' }}>
                       <span style={{ color: 'var(--text-secondary)' }}>CONFIDENCE</span>

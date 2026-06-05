@@ -12,9 +12,10 @@ interface ChatPanelProps {
   markets?: MergedMarket[]; // All markets for cross-market comparisons
   chatFocusTrigger?: number;
   marketSentiment?: any;
+  className?: string;
 }
 
-export default function ChatPanel({ market, analysis, markets, chatFocusTrigger, marketSentiment }: ChatPanelProps) {
+export default function ChatPanel({ market, analysis, markets, chatFocusTrigger, marketSentiment, className }: ChatPanelProps) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputMessage, setInputMessage] = useState('');
   const [loading, setLoading] = useState(false);
@@ -141,12 +142,10 @@ Description: ${target.description ?? 'N/A'}
   if (!market) {
     return (
       <div 
+        className={className}
         style={{
-          width: '360px',
-          minWidth: '360px',
           height: '100%',
           background: 'var(--bg-secondary)',
-          borderLeft: '1px solid var(--border)',
           display: 'flex',
           flexDirection: 'column',
           alignItems: 'center',
@@ -194,12 +193,10 @@ Description: ${target.description ?? 'N/A'}
 
   return (
     <div 
+      className={className}
       style={{
-        width: '360px',
-        minWidth: '360px',
         height: '100%',
         background: 'var(--bg-secondary)',
-        borderLeft: '1px solid var(--border)',
         display: 'flex',
         flexDirection: 'column',
         overflow: 'hidden',

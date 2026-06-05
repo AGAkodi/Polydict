@@ -11,7 +11,17 @@ export default function GlobalChat() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
   const endRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleResize = () => {
+      setIsMobile(window.innerWidth < 1024);
+    };
+    handleResize();
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
 
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -50,41 +60,44 @@ export default function GlobalChat() {
   return (
     <>
       {/* Floating trigger button */}
-      <button
-        onClick={() => setOpen(!open)}
-        style={{
-          position: "fixed",
-          bottom: "24px",
-          right: open ? "768px" : "384px",
-          width: "44px",
-          height: "44px",
-          borderRadius: "50%",
-          background: "var(--accent)",
-          border: "none",
-          cursor: "pointer",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          fontSize: "18px",
-          boxShadow: "0 0 20px rgba(0,209,255,0.4)",
-          zIndex: 1000,
-          transition: "right 0.3s ease",
-          color: "#0B0F14",
-          fontWeight: "bold",
-        }}
-        title="Ask about any market"
-      >
-        {open ? "×" : "◎"}
-      </button>
+      {(!open || !isMobile) && (
+        <button
+          onClick={() => setOpen(!open)}
+          style={{
+            position: "fixed",
+            bottom: isMobile ? "72px" : "24px",
+            right: isMobile ? "24px" : (open ? "768px" : "384px"),
+            width: "44px",
+            height: "44px",
+            borderRadius: "50%",
+            background: "var(--accent)",
+            border: "none",
+            cursor: "pointer",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            fontSize: "18px",
+            boxShadow: "0 0 20px rgba(0,209,255,0.4)",
+            zIndex: 1000,
+            transition: "right 0.3s ease",
+            color: "#0B0F14",
+            fontWeight: "bold",
+          }}
+          title="Ask about any market"
+        >
+          {open ? "×" : "◎"}
+        </button>
+      )}
 
       {/* Chat panel */}
       {open && (
         <div style={{
           position: "fixed",
-          bottom: "24px",
-          right: "384px",
-          width: "360px",
-          height: "500px",
+          bottom: isMobile ? "12px" : "24px",
+          right: isMobile ? "12px" : "384px",
+          left: isMobile ? "12px" : "auto",
+          width: isMobile ? "calc(100% - 24px)" : "360px",
+          height: isMobile ? "calc(100% - 24px)" : "500px",
           background: "var(--bg-secondary)",
           border: "1px solid var(--accent-border)",
           borderRadius: "var(--radius)",
@@ -121,14 +134,32 @@ export default function GlobalChat() {
                 Ask about any Polymarket prediction
               </p>
             </div>
-            <div style={{
-              width: "6px",
-              height: "6px",
-              borderRadius: "50%",
-              background: "var(--green)",
-              boxShadow: "0 0 6px var(--green)",
-              animation: "pulse 2s ease-in-out infinite",
-            }} />
+            <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+              <div style={{
+                width: "6px",
+                height: "6px",
+                borderRadius: "50%",
+                background: "var(--green)",
+                boxShadow: "0 0 6px var(--green)",
+                animation: "pulse 2s ease-in-out infinite",
+              }} />
+              {isMobile && (
+                <button
+                  onClick={() => setOpen(false)}
+                  style={{
+                    background: "transparent",
+                    border: "none",
+                    color: "var(--text-secondary)",
+                    cursor: "pointer",
+                    fontSize: "16px",
+                    fontWeight: "bold",
+                    padding: "4px",
+                  }}
+                >
+                  ✕
+                </button>
+              )}
+            </div>
           </div>
 
           {/* Messages */}

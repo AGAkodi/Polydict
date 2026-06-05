@@ -11,18 +11,15 @@ export default function CategoryTabs({ activeCategory, onSelectCategory }: Categ
 
   return (
     <div 
-      className="w-full overflow-x-auto no-scrollbar"
+      className="w-full overflow-x-auto"
       style={{
         height: '48px',
         background: 'var(--bg-secondary)',
         borderBottom: '1px solid var(--border)',
-        display: 'flex',
-        alignItems: 'center',
-        padding: '0 8px',
         flexShrink: 0,
       }}
     >
-      <div className="flex h-full min-w-max items-center">
+      <div className="flex h-full min-w-max items-center px-2">
         {categories.map((key) => {
           const isActive = activeCategory.toLowerCase() === key.toLowerCase();
           const label = CATEGORY_LABELS[key];
