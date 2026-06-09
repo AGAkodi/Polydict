@@ -511,7 +511,7 @@ export default function PredictionCard({
       {/* Re-analyze & Export buttons pill in top right */}
       <div 
         data-export-exclude="true" 
-        className="z-10 flex gap-2 items-center flex-wrap p-4 md:p-0 border-b border-[var(--border)] md:border-b-0 w-full md:w-auto justify-end md:absolute md:top-[14px] md:right-[16px]"
+        className="z-10 flex gap-2 items-center flex-wrap p-4 md:p-0 border-b border-[var(--border)] md:border-b-0 w-full md:w-auto justify-center md:justify-end md:absolute md:top-[14px] md:right-[16px]"
       >
         <button
           data-export-exclude="true"
@@ -707,6 +707,8 @@ export default function PredictionCard({
               display: 'flex',
               justifyContent: 'space-between',
               alignItems: 'center',
+              flexWrap: 'wrap',
+              gap: '8px',
               fontSize: '11px',
               fontFamily: 'var(--font-mono)',
               color: 'var(--text-muted)',

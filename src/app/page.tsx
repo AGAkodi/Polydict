@@ -272,16 +272,14 @@ export default function Home() {
   return (
     <main className="flex flex-col h-screen w-screen overflow-hidden bg-[var(--bg-primary)] bg-grid-pattern relative">
       {/* Global Header Bar */}
-      <div style={{
-        height: '48px',
-        background: 'var(--bg-secondary)',
-        borderBottom: '1px solid var(--border)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        padding: '0 20px',
-        flexShrink: 0,
-      }}>
+      <div 
+        className="flex items-center justify-between px-3 sm:px-5 shrink-0"
+        style={{
+          height: '48px',
+          background: 'var(--bg-secondary)',
+          borderBottom: '1px solid var(--border)',
+        }}
+      >
         {/* Left side: Logo — Custom Logo + POLYDICT */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
           <div style={{
@@ -307,14 +305,7 @@ export default function Home() {
               }} 
             />
           </div>
-          <span className="font-mono" style={{
-            fontSize: '14px',
-            fontWeight: 700,
-            letterSpacing: '0.12em',
-            background: 'linear-gradient(90deg, #00D1FF 0%, #00E676 100%)',
-            WebkitBackgroundClip: 'text',
-            WebkitTextFillColor: 'transparent',
-          }}>
+          <span className="font-mono text-[12px] sm:text-[14px] font-bold tracking-[0.12em] bg-gradient-to-r from-[#00D1FF] to-[#00E676] text-transparent bg-clip-text">
             POLYDICT
           </span>
         </div>
@@ -377,13 +368,14 @@ export default function Home() {
       </div>
 
       {/* Top Live Ticker Bar */}
-      <div className="h-8 bg-[#0b0f15] border-b border-[#1e2a38] flex items-center overflow-hidden select-none text-[10px] font-mono text-slate-400 px-4 shrink-0 relative z-30">
-        <div className="flex items-center gap-1.5 text-[#00d4ff] font-bold uppercase tracking-wider text-[9px] shrink-0 border-r border-[#1e2a38] pr-4 bg-[#0b0f15] z-10 h-full">
-          <span className="relative flex h-2 w-2">
+      <div className="h-8 bg-[#0b0f15] border-b border-[#1e2a38] flex items-center overflow-hidden select-none text-[10px] font-mono text-slate-400 px-2 sm:px-4 shrink-0 relative z-30">
+        <div className="flex items-center gap-1.5 text-[#00d4ff] font-bold uppercase tracking-wider text-[9px] shrink-0 border-r border-[#1e2a38] pr-2 sm:pr-4 bg-[#0b0f15] z-10 h-full">
+          <span className="relative flex h-2 w-2 shrink-0">
             <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#00d4ff] opacity-75"></span>
             <span className="relative inline-flex rounded-full h-2 w-2 bg-[#00d4ff]"></span>
           </span>
-          Live desk stream
+          <span className="hidden sm:inline">Live desk stream</span>
+          <span className="sm:hidden">Live</span>
         </div>
         
         <div className="flex-1 overflow-hidden relative h-full flex items-center">

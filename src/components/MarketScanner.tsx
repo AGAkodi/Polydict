@@ -287,7 +287,7 @@ export default function MarketScanner({
                 </button>
               </div>
               
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '12px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '8px', marginTop: '12px' }}>
                 <div 
                   style={{
                     fontFamily: 'var(--font-mono)',
