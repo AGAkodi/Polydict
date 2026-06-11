@@ -3,14 +3,21 @@ import { NextRequest, NextResponse } from "next/server";
 
 export async function POST(req: NextRequest) {
   try {
-    const { market, analysis, signals, history, message, marketSentiment } = await req.json();
+    const { market, analysis, signals, history, message, marketSentiment, allMarkets } = await req.json();
 
     let systemPrompt = "";
 
     if (!market) {
-      systemPrompt = `You are ALPHA CAST, a Polymarket analyst with access to all live markets.
-The user may ask about any market by name. Search the web for current Polymarket odds before answering.
-Always cite specific numbers. Never give generic answers.
+      const topMarketsStr = allMarkets && Array.isArray(allMarkets) 
+        ? allMarkets.slice(0, 25).map((m: any) => `- ${m.question} | YES: ${(m.yesPrice*100).toFixed(0)}% | Vol: $${Math.round(m.volume).toLocaleString()}`).join("\n")
+        : "No live market data available.";
+
+      systemPrompt = `You are ALPHA CAST, a Polymarket analyst with access to live market data.
+The user may ask about any market, or ask for general recommendations (e.g. what to ape in).
+Here are the current top trending markets on Polymarket right now:
+${topMarketsStr}
+
+Always cite specific numbers from the provided list. If they ask for a recommendation, recommend 1 or 2 markets with interesting odds or high edge.
 Tone: direct, confident, no filler. Trader talking to a trader.`;
     } else {
       systemPrompt = `You are ALPHA CAST, a sharp prediction market analyst inside a live Polymarket tool.

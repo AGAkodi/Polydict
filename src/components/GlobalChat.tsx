@@ -1,12 +1,14 @@
 "use client";
 import { useState, useRef, useEffect } from "react";
 
+import { MergedMarket } from '../utils/polymarket';
+
 interface Message {
   role: "user" | "assistant";
   content: string;
 }
 
-export default function GlobalChat() {
+export default function GlobalChat({ markets }: { markets?: MergedMarket[] }) {
   const [open, setOpen] = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
@@ -43,6 +45,7 @@ export default function GlobalChat() {
           signals: null,
           history: messages,
           message: text,
+          allMarkets: markets,
         }),
       });
       const data = await res.json();

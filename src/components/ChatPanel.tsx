@@ -56,7 +56,7 @@ export default function ChatPanel({ market, analysis, markets, chatFocusTrigger,
   }, [messages, loading]);
 
   const handleSendMessage = async (text: string) => {
-    if (!text.trim() || !market || loading) return;
+    if (!text.trim() || loading) return;
 
     let finalMessageToSend = text;
     if (injectedComparisonContext) {
@@ -80,6 +80,7 @@ export default function ChatPanel({ market, analysis, markets, chatFocusTrigger,
           history: messages,
           message: finalMessageToSend,
           marketSentiment,
+          allMarkets: markets,
         }),
       });
 
@@ -139,34 +140,7 @@ Description: ${target.description ?? 'N/A'}
     }
   };
 
-  if (!market) {
-    return (
-      <div 
-        className={className}
-        style={{
-          height: '100%',
-          background: 'var(--bg-secondary)',
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          justifyContent: 'center',
-          padding: '32px',
-          userSelect: 'none',
-          textAlign: 'center',
-          fontFamily: 'var(--font-mono)',
-        }}
-      >
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-          <div style={{ color: 'var(--text-muted)', fontSize: '11px', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.1em' }}>
-            [PolyDict Chat Standby]
-          </div>
-          <p style={{ fontSize: '12px', color: 'var(--text-secondary)', maxWidth: '220px', margin: '0 auto', lineHeight: '1.6', fontFamily: 'var(--font-sans)' }}>
-            Select a market from the sidebar to open the AI prediction chat channel.
-          </p>
-        </div>
-      </div>
-    );
-  }
+  // Splash screen removed for global mode
 
   // Define suggested questions chips
   const defaultSuggestions = [
@@ -177,7 +151,14 @@ Description: ${target.description ?? 'N/A'}
     "Steelman the other side",
   ];
 
-  const suggestedQuestions = analysis?.suggestedQuestions || defaultSuggestions;
+  const globalSuggestions = [
+    "What prediction should I ape in today?",
+    "What are the top trending markets right now?",
+    "Any high-edge opportunities?",
+    "What's the latest on the US election?",
+  ];
+
+  const suggestedQuestions = market ? (analysis?.suggestedQuestions || defaultSuggestions) : globalSuggestions;
 
   const getVerdictBadgeColor = (v?: string) => {
     switch (v) {
@@ -234,15 +215,15 @@ Description: ${target.description ?? 'N/A'}
             padding: '2px 8px',
             borderRadius: '4px',
             border: '1px solid var(--border)',
-            background: analysis?.verdict === 'YES' ? 'var(--green-glow)' : 
+            background: !market ? 'rgba(0, 209, 255, 0.1)' : analysis?.verdict === 'YES' ? 'var(--green-glow)' : 
                         analysis?.verdict === 'NO' ? 'var(--red-glow)' : 'var(--amber-glow)',
-            borderColor: analysis?.verdict === 'YES' ? 'rgba(0, 230, 118, 0.2)' : 
+            borderColor: !market ? 'rgba(0, 209, 255, 0.3)' : analysis?.verdict === 'YES' ? 'rgba(0, 230, 118, 0.2)' : 
                          analysis?.verdict === 'NO' ? 'rgba(255, 82, 82, 0.2)' : 'rgba(255, 183, 77, 0.2)',
-            color: analysis?.verdict === 'YES' ? 'var(--green)' : 
+            color: !market ? 'var(--accent)' : analysis?.verdict === 'YES' ? 'var(--green)' : 
                    analysis?.verdict === 'NO' ? 'var(--red)' : 'var(--amber)',
           }}
         >
-          {analysis?.verdict || 'SKIP'} MODE
+          {!market ? 'GLOBAL' : analysis?.verdict || 'SKIP'} MODE
         </span>
       </div>
 
@@ -287,7 +268,7 @@ Description: ${target.description ?? 'N/A'}
               >
                 PolyDict Analyst
               </div>
-              Discuss the resolution criteria, sentiment indicators, and tail risks of this contract. I can run live search filters on command.
+              {market ? 'Discuss the resolution criteria, sentiment indicators, and tail risks of this contract.' : 'I am your global PolyDict analyst. Ask me about any market or what predictions you should look at today.'}
             </div>
 
             {/* Clickable Suggested starter chips */}

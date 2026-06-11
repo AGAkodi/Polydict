@@ -568,7 +568,7 @@ export default function Home() {
         />
       </div>
 
-      <GlobalChat />
+      <GlobalChat markets={enrichedMarkets} />
     </main>
   );
 }
