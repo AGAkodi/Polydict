@@ -1,5 +1,3 @@
-'use strict';
-
 'use client';
 
 import React, { useState, useEffect, useMemo } from 'react';
@@ -32,15 +30,14 @@ export default function Home() {
   const [watchlist, setWatchlist] = useState<string[]>([]);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [analysisStatus, setAnalysisStatus] = useState('');
-  const [mobileActivePanel, setMobileActivePanel] = useState<'scanner' | 'details' | 'chat'>('scanner');
 
-  // Setup SWR for markets metadata — refresh every 24h (86400000 ms)
+  // Setup SWR for markets metadata — refresh every 5m (300000 ms)
   const { data: markets = [], error: marketsError, mutate: mutateMarkets } = useSWR<MergedMarket[]>(
     `/api/markets?category=${activeCategory}`,
     fetcher,
     {
-      refreshInterval: 86400000,
-      revalidateOnFocus: false,
+      refreshInterval: 300_000,
+      revalidateOnFocus: true,
       revalidateOnReconnect: true,
       keepPreviousData: false,
       onSuccess: () => {
@@ -262,7 +259,6 @@ export default function Home() {
   const handleSelectMarket = (market: MergedMarket) => {
     setSelectedMarket(market);
     setActiveAnalysis(null);
-    setMobileActivePanel('details');
   };
 
   const handleAnalysisLoaded = (analysis: any) => {
@@ -409,13 +405,13 @@ export default function Home() {
 
       {/* Main Panel Content Container - Responsive Layout */}
       <div 
-        className="flex flex-1 overflow-hidden pb-14 lg:pb-0"
+        className="flex flex-1 overflow-x-auto overflow-y-hidden"
         style={{
           background: 'var(--bg-primary)',
         }}
       >
-        {/* LEFT SIDEBAR (Width 64px, collapsed, icons only) - Hidden on Mobile */}
-        <div className="hidden lg:block h-full shrink-0">
+        {/* LEFT SIDEBAR (Width 64px, collapsed, icons only) */}
+        <div className="h-full shrink-0">
           <LeftNav 
             activeTab={activeTab} 
             onTabChange={(tabId) => {
@@ -432,9 +428,7 @@ export default function Home() {
 
         {/* CENTER PANEL (Primary Workspace) */}
         <div 
-          className={`flex-1 flex-col overflow-hidden ${
-            mobileActivePanel === 'chat' ? 'hidden lg:flex' : 'flex'
-          }`}
+          className="flex flex-1 flex-col overflow-hidden min-w-[680px]"
         >
           {/* Category Tabs Bar at top of Center Panel */}
           <CategoryTabs activeCategory={activeCategory} onSelectCategory={setActiveCategory} />
@@ -449,9 +443,7 @@ export default function Home() {
           >
             {/* Left Column - Market Scanner (Width 340px) */}
             <div 
-              className={`flex-col h-full border-r border-[var(--border)] shrink-0 lg:flex lg:w-[340px] lg:min-w-[340px] ${
-                mobileActivePanel === 'scanner' ? 'flex w-full' : 'hidden'
-              }`}
+              className="flex flex-col h-full border-r border-[var(--border)] shrink-0 w-[340px] min-w-[340px]"
             >
               {activeTab === 'watchlist' ? (
                 <Watchlist
@@ -481,9 +473,7 @@ export default function Home() {
 
             {/* Right Column - Prediction details (flex-1) */}
             <div 
-              className={`flex-col h-full overflow-y-auto no-scrollbar lg:flex lg:flex-1 ${
-                mobileActivePanel === 'details' ? 'flex w-full' : 'hidden'
-              }`}
+              className="flex flex-col h-full overflow-y-auto no-scrollbar flex-1 min-w-[340px]"
               style={{
                 background: 'var(--bg-primary)',
               }}
@@ -574,91 +564,11 @@ export default function Home() {
           markets={enrichedMarkets} 
           chatFocusTrigger={chatFocusTrigger}
           marketSentiment={marketSentiment}
-          className={`lg:flex border-l border-[var(--border)] shrink-0 lg:w-[360px] lg:min-w-[360px] ${
-            mobileActivePanel === 'chat' ? 'flex w-full h-full' : 'hidden'
-          }`}
+          className="flex border-l border-[var(--border)] shrink-0 w-[360px] min-w-[360px]"
         />
       </div>
 
       <GlobalChat />
-
-      {/* Mobile Bottom Navigation Bar */}
-      <div className="lg:hidden fixed bottom-0 left-0 right-0 h-14 bg-[var(--bg-secondary)] border-t border-[var(--border)] flex items-center justify-around z-50">
-        <button 
-          onClick={() => {
-            setMobileActivePanel('scanner');
-            setActiveTab('dashboard');
-          }}
-          className="flex flex-col items-center justify-center gap-1 cursor-pointer outline-none bg-transparent border-none"
-          style={{ color: (mobileActivePanel === 'scanner' && activeTab === 'dashboard') ? 'var(--accent)' : 'var(--text-secondary)' }}
-        >
-          <span style={{ fontSize: '18px', lineHeight: 1 }}>⬡</span>
-          <span style={{ fontSize: '9px', fontFamily: 'var(--font-mono)', fontWeight: 'bold' }}>MARKETS</span>
-        </button>
-        <button 
-          onClick={() => {
-            setMobileActivePanel('scanner');
-            setActiveTab('watchlist');
-          }}
-          className="flex flex-col items-center justify-center gap-1 cursor-pointer outline-none bg-transparent border-none relative"
-          style={{ color: (mobileActivePanel === 'scanner' && activeTab === 'watchlist') ? 'var(--accent)' : 'var(--text-secondary)' }}
-        >
-          <span style={{ fontSize: '18px', lineHeight: 1 }}>★</span>
-          <span style={{ fontSize: '9px', fontFamily: 'var(--font-mono)', fontWeight: 'bold' }}>WATCHLIST</span>
-          {watchlist.length > 0 && (
-            <span style={{
-              position: 'absolute',
-              top: '2px',
-              right: '22px',
-              background: 'var(--accent)',
-              color: 'var(--bg-primary)',
-              fontSize: '8px',
-              fontWeight: 'bold',
-              borderRadius: '50%',
-              width: '12px',
-              height: '12px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontFamily: 'var(--font-mono)',
-            }}>
-              {watchlist.length}
-            </span>
-          )}
-        </button>
-        <button 
-          onClick={() => {
-            setMobileActivePanel('details');
-            if (activeTab === 'settings') setActiveTab('dashboard');
-          }}
-          className="flex flex-col items-center justify-center gap-1 cursor-pointer outline-none bg-transparent border-none"
-          style={{ color: (mobileActivePanel === 'details' && activeTab !== 'settings') ? 'var(--accent)' : 'var(--text-secondary)' }}
-        >
-          <span style={{ fontSize: '18px', lineHeight: 1 }}>◈</span>
-          <span style={{ fontSize: '9px', fontFamily: 'var(--font-mono)', fontWeight: 'bold' }}>ANALYSIS</span>
-        </button>
-        <button 
-          onClick={() => {
-            setMobileActivePanel('chat');
-          }}
-          className="flex flex-col items-center justify-center gap-1 cursor-pointer outline-none bg-transparent border-none"
-          style={{ color: (mobileActivePanel === 'chat') ? 'var(--accent)' : 'var(--text-secondary)' }}
-        >
-          <span style={{ fontSize: '18px', lineHeight: 1 }}>◎</span>
-          <span style={{ fontSize: '9px', fontFamily: 'var(--font-mono)', fontWeight: 'bold' }}>CHAT</span>
-        </button>
-        <button 
-          onClick={() => {
-            setMobileActivePanel('details');
-            setActiveTab('settings');
-          }}
-          className="flex flex-col items-center justify-center gap-1 cursor-pointer outline-none bg-transparent border-none"
-          style={{ color: (mobileActivePanel === 'details' && activeTab === 'settings') ? 'var(--accent)' : 'var(--text-secondary)' }}
-        >
-          <span style={{ fontSize: '18px', lineHeight: 1 }}>⊙</span>
-          <span style={{ fontSize: '9px', fontFamily: 'var(--font-mono)', fontWeight: 'bold' }}>SETTINGS</span>
-        </button>
-      </div>
     </main>
   );
 }

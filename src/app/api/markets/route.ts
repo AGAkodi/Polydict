@@ -84,7 +84,7 @@ export async function GET(req: NextRequest) {
       // Fetch all markets
       const res = await fetch(
         `${GAMMA}/events?active=true&closed=false&limit=50&order=volume&ascending=false`,
-        { next: { revalidate: 86400, tags: ["markets"] } }
+        { next: { revalidate: 300, tags: ["markets"] } }
       );
       const data = res.ok ? await res.json() : [];
       const events = Array.isArray(data) ? data : data.data ?? [];
@@ -94,7 +94,7 @@ export async function GET(req: NextRequest) {
       const primaryTag = tagValues[0];
       const primaryRes = await fetch(
         `${GAMMA}/events?active=true&closed=false&limit=50&order=volume&ascending=false&tag=${encodeURIComponent(primaryTag)}`,
-        { next: { revalidate: 86400, tags: ["markets"] } }
+        { next: { revalidate: 300, tags: ["markets"] } }
       );
       const primaryData = primaryRes.ok ? await primaryRes.json() : [];
       const primaryEvents = Array.isArray(primaryData) ? primaryData : primaryData.data ?? [];
@@ -106,7 +106,7 @@ export async function GET(req: NextRequest) {
           tagValues.slice(1).map((tag) =>
             fetch(
               `${GAMMA}/events?active=true&closed=false&limit=20&order=volume&ascending=false&tag=${encodeURIComponent(tag)}`,
-              { next: { revalidate: 86400, tags: ["markets"] } }
+              { next: { revalidate: 300, tags: ["markets"] } }
             ).then((r) => r.json())
           )
         );

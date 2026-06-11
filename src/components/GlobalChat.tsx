@@ -65,7 +65,7 @@ export default function GlobalChat() {
           onClick={() => setOpen(!open)}
           style={{
             position: "fixed",
-            bottom: isMobile ? "72px" : "24px",
+            bottom: "24px",
             right: isMobile ? "24px" : (open ? "768px" : "384px"),
             width: "44px",
             height: "44px",
@@ -93,7 +93,7 @@ export default function GlobalChat() {
       {open && (
         <div style={{
           position: "fixed",
-          bottom: isMobile ? "12px" : "24px",
+          bottom: "24px",
           right: isMobile ? "12px" : "384px",
           left: isMobile ? "12px" : "auto",
           width: isMobile ? "calc(100% - 24px)" : "360px",
