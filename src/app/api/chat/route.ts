@@ -9,7 +9,7 @@ export async function POST(req: NextRequest) {
 
     if (!market) {
       const topMarketsStr = allMarkets && Array.isArray(allMarkets) 
-        ? allMarkets.slice(0, 25).map((m: any) => `- ${m.question} | YES: ${(m.yesPrice*100).toFixed(0)}% | Vol: $${Math.round(m.volume).toLocaleString()}`).join("\n")
+        ? allMarkets.slice(0, 25).map((m: any) => `- ${m.question} | YES: ${((m.yesPrice || 0)*100).toFixed(0)}% | Vol: $${Math.round(m.volume || 0).toLocaleString()}`).join("\n")
         : "No live market data available.";
 
       systemPrompt = `You are ALPHA CAST, a Polymarket analyst with access to live market data.
@@ -70,7 +70,7 @@ RESPONSE RULES:
       {
         role: "assistant",
         content: market
-          ? `Got it. "${market.question}" is at ${(market.yesPrice * 100).toFixed(1)}% YES. Verdict: ${analysis?.verdict ?? "SKIP"} - ${(analysis?.confidence ? analysis.confidence * 100 : 50).toFixed(1)}% confidence, ${(analysis?.edge ? analysis.edge * 100 : 0).toFixed(1)} percentage point edge. Ask me anything.`
+          ? `Got it. "${market.question}" is at ${((market.yesPrice || 0) * 100).toFixed(1)}% YES. Verdict: ${analysis?.verdict ?? "SKIP"} - ${(analysis?.confidence ? analysis.confidence * 100 : 50).toFixed(1)}% confidence, ${(analysis?.edge ? analysis.edge * 100 : 0).toFixed(1)} percentage point edge. Ask me anything.`
           : "Global analyst desk ready. Ask me about any market.",
       },
       ...(history || []).map((h: any) => ({
