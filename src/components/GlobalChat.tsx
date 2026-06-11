@@ -45,7 +45,7 @@ export default function GlobalChat({ markets }: { markets?: MergedMarket[] }) {
           signals: null,
           history: messages,
           message: text,
-          allMarkets: markets,
+          allMarkets: markets ? [...markets].sort((a, b) => (b.volume || 0) - (a.volume || 0)).slice(0, 25) : null,
         }),
       });
       const data = await res.json();

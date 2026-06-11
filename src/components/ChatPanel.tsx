@@ -80,7 +80,7 @@ export default function ChatPanel({ market, analysis, markets, chatFocusTrigger,
           history: messages,
           message: finalMessageToSend,
           marketSentiment,
-          allMarkets: markets,
+          allMarkets: markets ? [...markets].sort((a, b) => (b.volume || 0) - (a.volume || 0)).slice(0, 25) : null,
         }),
       });
 
